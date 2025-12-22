@@ -1,5 +1,22 @@
-export { useLocation, calculateDistance, calculateBearing, formatDistance } from './useLocation';
-export { useAudioPlayer, formatTime, formatRemainingTime } from './useAudioPlayer';
-export { useGeofence, isApproachingStop, getStopsByDistance } from './useGeofence';
+// Hooks index - export all hooks for easy importing
+
+export { useAudioPlayer } from './useAudioPlayer';
+export { useGeofence } from './useGeofence';
+export { useLocation } from './useLocation';
+export { useSettings } from './useSettings';
 export { useTourProgress } from './useTourProgress';
-export { useSettings, PLAYBACK_SPEEDS, getNextPlaybackSpeed } from './useSettings';
+export {
+  useFavorites,
+  useTourRatings,
+  useTourNotes,
+  useTourProgressData,
+  useTourUserData,
+} from './useTourUserData';
+
+// Re-export types from useTourUserData
+export type {
+  TourRating,
+  TourNote,
+  TourProgressData,
+  LastPlayedTour,
+} from './useTourUserData';

@@ -1,336 +1,333 @@
-# Audio Tour App
+# 🎧 Audio Walking Tour App
 
-A personal GPS-triggered audio walking tour app for Android. Create tours for any city using your LLM subscriptions for script generation and free text-to-speech for audio.
+A React Native (Expo) application for GPS-triggered audio walking tours with offline support. Create immersive, location-based audio experiences that automatically play narrations as users walk through points of interest.
 
-## Features
+![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-blue)
+![Expo](https://img.shields.io/badge/Expo-SDK%2051-000020)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-### Core Tour Experience
-- **GPS Location Tracking** - Real-time position on interactive map
-- **Route Visualization** - Red line showing walking path with numbered pins
-- **Auto-Play Triggers** - Audio plays automatically when you reach a stop
-- **Full Audio Controls** - Play/pause, ±15s skip, speed control (0.5x-2x)
-- **Background Playback** - Audio continues even when screen is locked
+## ✨ Features
 
-### Navigation
-- **Manual Mode** - Click through stops when GPS is unreliable (indoors, poor signal)
-- **GPS Mode** - Automatic stop detection based on proximity
-- **Route Directions** - Visual and spoken directions between stops (e.g., "Turn left at the fountain")
-- **GPS Accuracy Indicator** - See signal quality in real-time
+### 🗺️ Core Tour Experience
+- **GPS-Triggered Audio**: Audio automatically plays when entering geofenced areas
+- **Interactive Map**: Real-time location tracking with stop markers and route visualization
+- **Smart Navigation**: Turn-by-turn walking directions between stops
+- **Progress Tracking**: Persistent progress that survives app restarts
 
-### Offline Capability
-- **Download Tours** - Pre-download all content for airplane mode
-- **Offline Maps** - Map tiles cached for your tour area
-- **No Data Required** - Works perfectly without internet after download
+### 📱 User Features
+- **Tour Favorites**: Bookmark tours for quick access
+- **Star Ratings & Reviews**: Rate completed tours and write reviews
+- **Personal Notes**: Add notes to tours or specific stops
+- **Resume Tours**: Continue where you left off with one tap
+- **Share via QR Code**: Share tours with friends easily
+- **Progress Indicators**: Visual progress percentage on all tour cards
 
-### Organization
-- **Stop List View** - See all stops, progress tracking
-- **Script Viewer** - Read full transcript while listening
-- **Photo Display** - Images for each stop
-- **Progress Saving** - Resume where you left off
+### 📴 Offline Support
+- **Complete Offline Mode**: Download audio, images, and map tiles
+- **Background Downloads**: Continue downloads while using other apps
+- **Smart Tile Caching**: Only downloads tiles for the tour area
+- **Storage Management**: View and delete offline data per tour
 
-## Quick Start
+### 🛠️ Tour Creator (Web Tool)
+- **Visual Map Editor**: Drag-and-drop stop placement
+- **Auto Walking Directions**: Generates turn-by-turn instructions via OSRM
+- **Route Optimization**: One-click shortest path calculation
+- **AI Script Helper**: Generate prompts for writing narration scripts
+- **Accessibility Options**: Mark wheelchair access, stairs, terrain difficulty
+- **Multiple Export Formats**: JSON, GPX, CSV, Python commands
+- **Dark Mode**: Easy on the eyes for long editing sessions
 
-### 1. Install Dependencies
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+ 
+- npm or yarn
+- Expo CLI (`npm install -g expo-cli`)
+- iOS Simulator (Mac) or Android Emulator
+- Physical device recommended for GPS testing
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/audio-tour-app.git
 cd audio-tour-app
+
+# Install dependencies
 npm install
+
+# Install iOS pods (Mac only)
+cd ios && pod install && cd ..
+
+# Start the development server
+npx expo start
 ```
 
-### 2. Set Up Google Maps API Key
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a project and enable "Maps SDK for Android"
-3. Create an API key
-4. Add to `app.json`:
-
-```json
-"android": {
-  "config": {
-    "googleMaps": {
-      "apiKey": "YOUR_API_KEY_HERE"
-    }
-  }
-}
-```
-
-### 3. Run the App
+### Running on Device
 
 ```bash
-# Install Expo Go on your Android phone from Play Store
+# iOS Simulator
+npx expo run:ios
+
+# Android Emulator
+npx expo run:android
+
+# Physical device (scan QR code)
 npx expo start
-
-# Scan QR code with Expo Go app
 ```
 
-## Creating Tours
-
-### Easy Way: Use the Tour Creator Web App
-
-Open `tools/tour-creator.html` in your browser - no installation needed!
-
-**Features:**
-- 🗺️ **Click on map** to add stops
-- 📍 **Search** for any city or location
-- ✏️ **Edit** stop names and scripts inline
-- 🔄 **Drag markers** to adjust positions
-- ↕️ **Reorder** stops with up/down buttons
-- 💾 **Auto-saves** to browser storage
-- 📤 **Export** ready-to-use tour.json
-
-**Workflow:**
-1. Open `tour-creator.html` in Chrome/Firefox
-2. Search for your city
-3. Click on map to add each stop
-4. Enter the script for each stop
-5. Click "Export Tour" to download `tour.json`
-6. Run `python generate_audio.py ./your-tour-folder` to create MP3s
-
-### Tour Folder Structure
-
-> **Note:** The Tour Creator handles all this for you - but here's the structure if you prefer manual editing.
-
-Each tour is a folder containing:
+## 📁 Project Structure
 
 ```
-tours/
-  my-city-tour/
-    tour.json           # Tour configuration
-    audio/
-      01-stop.mp3
-      02-stop.mp3
-      ...
-    images/
-      01-stop.jpg
-      02-stop.jpg
-      ...
+audio-tour-app/
+├── src/
+│   ├── components/
+│   │   ├── AudioPlayerBar.tsx      # Audio playback controls
+│   │   ├── MapDisplay.tsx          # Interactive map with markers
+│   │   ├── NavigationControls.tsx  # Next/previous stop buttons
+│   │   ├── OfflineManager.tsx      # Offline download modal
+│   │   ├── ResumeTourBanner.tsx    # Resume in-progress tours
+│   │   ├── RouteDirections.tsx     # Walking direction display
+│   │   ├── ScriptViewer.tsx        # Script/transcript viewer
+│   │   ├── ShareTourModal.tsx      # QR code sharing
+│   │   ├── StopListPanel.tsx       # Collapsible stop list
+│   │   ├── TourCard.tsx            # Tour list card component
+│   │   ├── TourNotesModal.tsx      # Notes management
+│   │   └── TourRatingModal.tsx     # Star rating modal
+│   ├── hooks/
+│   │   ├── useAudioPlayer.ts       # Audio playback logic
+│   │   ├── useGeofence.ts          # Geofencing logic
+│   │   ├── useLocation.ts          # GPS location tracking
+│   │   ├── useSettings.ts          # App settings
+│   │   ├── useTourProgress.ts      # Tour progress state
+│   │   └── useTourUserData.ts      # Favorites, ratings, notes
+│   ├── screens/
+│   │   ├── HomeScreen.tsx          # Tour list with filters
+│   │   ├── TourScreen.tsx          # Active tour view
+│   │   └── SettingsScreen.tsx      # App settings
+│   ├── services/
+│   │   ├── tourLoader.ts           # Tour JSON loading
+│   │   └── seedData.ts             # Sample data for testing
+│   └── types/
+│       └── tour.ts                 # TypeScript interfaces
+├── assets/
+│   └── tours/                      # Tour data and media
+├── tools/
+│   ├── tour-creator.html           # Web-based tour creator
+│   └── generate_audio.py           # TTS audio generation
+├── app.json                        # Expo configuration
+└── package.json
 ```
 
-### tour.json Schema
+## 🎨 Creating Tours
+
+### Using the Tour Creator Tool
+
+1. Open `tools/tour-creator.html` in a web browser
+2. Click on the map to add stops
+3. Fill in stop details (name, script, directions)
+4. Use "Generate Directions" for automatic walking instructions
+5. Export as `tour.json`
+
+### Tour JSON Structure
 
 ```json
 {
-  "id": "my-city-tour",
-  "name": "My City Walking Tour",
-  "description": "A 2-hour walk through the historic center",
-  "language": "en",
-  "estimatedDuration": 120,
-  "totalDistance": 2.4,
-  "createdDate": "2025-01-15",
+  "id": "my-tour",
+  "name": "Historic Downtown Walk",
+  "description": "Explore the rich history...",
+  "version": "1.0",
   "author": "Your Name",
-  
-  "startPoint": {
-    "latitude": 52.4064,
-    "longitude": 16.9342,
-    "instruction": "Start at the main square"
-  },
-  
+  "language": "en",
   "stops": [
     {
       "id": 1,
-      "name": "First Stop Name",
-      "latitude": 52.4064,
-      "longitude": 16.9342,
-      "triggerRadius": 25,
-      "audioFile": "audio/01-stop.mp3",
-      "audioDuration": 90,
-      "imageFile": "images/01-stop.jpg",
-      "script": "Full transcript of what is spoken...",
-      "directionToNext": "Walk north along the main street",
-      "distanceToNext": 150
+      "name": "Town Hall",
+      "latitude": 53.4808,
+      "longitude": -2.2426,
+      "triggerRadius": 30,
+      "audioFile": "audio/stop1.mp3",
+      "imageFile": "images/stop1.jpg",
+      "script": "Welcome to the historic Town Hall...",
+      "directionToNext": "Head north on Market Street for 150 meters..."
     }
   ],
-  
-  "route": {
-    "type": "walking",
-    "waypoints": [
-      [52.4064, 16.9342],
-      [52.4078, 16.9335]
-    ]
+  "startPoint": {
+    "latitude": 53.4808,
+    "longitude": -2.2426,
+    "address": "Town Hall, Manchester"
+  },
+  "totalDistance": 2.5,
+  "estimatedDuration": 45,
+  "difficulty": "easy",
+  "accessibility": {
+    "wheelchairAccessible": true,
+    "hasStairs": false
   }
 }
 ```
 
-### Step-by-Step Tour Creation
+### Generating Audio Files
 
-#### 1. Research & Plan
-
-- Identify 8-15 stops (typical for 1-2 hour tour)
-- Plan a logical walking route
-- Research history/facts for each location
-
-#### 2. Get GPS Coordinates
-
-**Method A: Google Maps**
-- Right-click any location
-- First option shows coordinates
-- Click to copy
-
-**Method B: What3Words or GPS app**
-- Use any GPS app to record coordinates on location
-
-#### 3. Generate Scripts with Claude/ChatGPT
-
-Use this prompt template:
-
-```
-I'm creating an audio walking tour. Write a 60-90 second 
-narration script for [LOCATION NAME] that:
-
-- Opens with a hook or interesting fact
-- Provides historical context
-- Describes what the visitor is seeing
-- Ends with a transition to walking to the next stop
-
-Location: [NAME]
-Type: [museum/church/square/etc]
-Key facts: [YOUR RESEARCH]
-
-Style: Conversational, engaging, as if a knowledgeable 
-friend is showing you around.
-```
-
-#### 4. Generate Audio (Free)
-
-Install Edge TTS:
-```bash
-pip install edge-tts
-```
-
-Run the generator:
-```bash
-python tools/generate_audio.py ./tours/my-city-tour
-```
-
-Options:
-```bash
-# List available voices
-python tools/generate_audio.py --list-voices
-
-# Use different voice
-python tools/generate_audio.py ./tours/my-city-tour --voice en-US-GuyNeural
-
-# Overwrite existing files
-python tools/generate_audio.py ./tours/my-city-tour --overwrite
-```
-
-**Recommended Voices:**
-- `en-GB-RyanNeural` - Warm British male (default)
-- `en-GB-SoniaNeural` - Clear British female
-- `en-US-GuyNeural` - Friendly American male
-- `en-AU-WilliamNeural` - Relaxed Australian male
-
-#### 5. Add Images
-
-- Take photos at each stop, or
-- Use Google Street View screenshots
-- Resize to ~800x600px
-- Name matching audioFile pattern
-
-#### 6. Map the Route
-
-For the waypoints array:
-1. Use Google Maps directions (walking)
-2. Add waypoints every 50-100m along the route
-3. Extract as coordinate pairs
-
-Or use the simpler approach: just use stop coordinates and the app will draw a straight-line route.
-
-### Copying Tours to Device
-
-**Option A: USB Transfer**
-1. Connect phone to computer
-2. Copy tour folder to: `Android/data/com.daniels.audiotour/files/tours/`
-
-**Option B: ADB**
-```bash
-adb push ./tours/my-city-tour /sdcard/Android/data/com.daniels.audiotour/files/tours/
-```
-
-## Development
-
-### Project Structure
-
-```
-
-Note: `src/services/seedData.ts` uses static `require()` statements for tour assets. React Native bundling does not allow dynamic `require()` for local files, so add each asset explicitly.
-audio-tour-app/
-├── App.tsx                 # Main app entry
-├── app.json               # Expo configuration
-├── src/
-│   ├── components/        # UI components
-│   │   ├── AudioPlayerBar.tsx
-│   │   ├── MapDisplay.tsx
-│   │   ├── StopListPanel.tsx
-│   │   └── ScriptViewer.tsx
-│   ├── screens/           # App screens
-│   │   ├── HomeScreen.tsx
-│   │   ├── TourScreen.tsx
-│   │   └── SettingsScreen.tsx
-│   ├── hooks/             # Custom hooks
-│   │   ├── useLocation.ts
-│   │   ├── useAudioPlayer.ts
-│   │   ├── useGeofence.ts
-│   │   └── useTourProgress.ts
-│   ├── services/          # Business logic
-│   │   └── tourLoader.ts
-│   └── types/             # TypeScript definitions
-│       └── tour.ts
-└── tools/
-    └── generate_audio.py  # Audio generation script
-```
-
-### Building for Production
+Use the included Python script with OpenAI TTS:
 
 ```bash
-# Install EAS CLI
-npm install -g eas-cli
+# Set your OpenAI API key
+export OPENAI_API_KEY="your-key-here"
 
-# Configure build
-eas build:configure
+# Generate audio for all stops
+python tools/generate_audio.py tours/my-tour/tour.json
 
-# Build APK for testing
-eas build --platform android --profile preview
-
-# Build for Play Store
-eas build --platform android --profile production
+# Or use a specific voice
+python tools/generate_audio.py tours/my-tour/tour.json --voice nova
 ```
 
-### Key Dependencies
+Available voices: `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
 
+## ⚙️ Configuration
+
+### App Settings (app.json)
+
+```json
+{
+  "expo": {
+    "name": "Audio Tour",
+    "slug": "audio-tour",
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Audio Tour to use your location for GPS-triggered audio playback."
+        }
+      ]
+    ],
+    "ios": {
+      "infoPlist": {
+        "UIBackgroundModes": ["location", "audio"]
+      }
+    }
+  }
+}
+```
+
+### Geofence Settings
+
+Adjust in `src/hooks/useGeofence.ts`:
+
+```typescript
+const DEFAULT_TRIGGER_RADIUS = 30; // meters
+const LOCATION_UPDATE_INTERVAL = 5000; // ms
+```
+
+## 📦 Dependencies
+
+### Core
+- `expo` - Development platform
+- `react-native` - UI framework
 - `expo-location` - GPS tracking
 - `expo-av` - Audio playback
+- `expo-file-system` - File management
+- `expo-haptics` - Tactile feedback
+
+### Maps
 - `react-native-maps` - Map display
-- `@react-navigation/native` - Navigation
+- Map tiles from OpenStreetMap
 
-## Troubleshooting
+### Storage
+- `@react-native-async-storage/async-storage` - Persistent storage
 
-### Location not updating
-- Check location permissions in device settings
-- Ensure GPS is enabled
-- Try stepping outside for better signal
+### Navigation
+- `@react-navigation/native` - Navigation framework
+- `@react-navigation/stack` - Stack navigator
 
-### Audio not playing
-- Check file paths in tour.json match actual files
-- Verify MP3 files are valid
-- Check device volume
+## 🧪 Testing
 
-### Map not showing
-- Verify Google Maps API key is set
-- Check API key has Maps SDK enabled
-- Check network connection for initial map tiles
+### Test Plan
 
-## Cost Summary
+#### Unit Tests
+```bash
+npm test
+```
 
-| Item | Cost |
-|------|------|
-| React Native / Expo | Free |
-| Google Maps API | Free (28k loads/month) |
-| Edge TTS audio | Free (unlimited) |
-| Script generation | Free (your LLM subscriptions) |
+#### GPS Simulation (iOS Simulator)
+1. Open Simulator
+2. Features → Location → Custom Location
+3. Enter coordinates from your tour
 
-**Total: £0**
+#### GPS Simulation (Android)
+1. Use a GPS spoofing app
+2. Or use Android Studio's emulator location controls
 
-## License
+### Manual Test Checklist
 
-Personal use only. Not for commercial distribution.
+#### Home Screen
+- [ ] Tours load and display correctly
+- [ ] Favorites toggle works
+- [ ] Progress percentage displays accurately
+- [ ] Resume banner appears for in-progress tours
+- [ ] Filter tabs work (All, Favorites, In Progress, Completed)
+
+#### Tour Playback
+- [ ] Audio plays when entering geofence
+- [ ] Audio pauses/resumes correctly
+- [ ] Seek bar works accurately
+- [ ] Progress saves when leaving tour
+- [ ] Directions display between stops
+
+#### Offline Mode
+- [ ] Download completes successfully
+- [ ] Audio plays without network
+- [ ] Map tiles display offline
+- [ ] Delete removes all cached data
+
+#### Ratings & Notes
+- [ ] Can add/edit/delete ratings
+- [ ] Can add notes to tours and stops
+- [ ] Data persists across app restarts
+
+## 🐛 Troubleshooting
+
+### GPS Not Working
+- Ensure location permissions are granted
+- Check that location services are enabled
+- Try outdoors for better GPS signal
+- Verify `expo-location` is properly configured
+
+### Audio Not Playing
+- Check device volume and mute switch
+- Verify audio files exist at specified paths
+- Test with `expo-av` debug logging enabled
+
+### Map Not Loading
+- Check internet connection
+- Verify OpenStreetMap tile servers are accessible
+- Clear app cache and reload
+
+### Offline Downloads Failing
+- Ensure sufficient storage space
+- Check network stability during download
+- Try downloading on WiFi
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [OpenStreetMap](https://www.openstreetmap.org/) for map tiles
+- [OSRM](http://project-osrm.org/) for routing/directions API
+- [Expo](https://expo.dev/) for the amazing development platform
+- [OpenAI](https://openai.com/) for TTS voice generation
+
+---
+
+Built with ❤️ for explorers everywhere

@@ -1,98 +1,223 @@
-// Tour data structure types
-
-export interface Coordinates {
-  latitude: number;
-  longitude: number;
-}
+// Tour and Stop Types
 
 export interface TourStop {
   id: number;
   name: string;
-  nameTranslated?: string | null;
   latitude: number;
   longitude: number;
-  triggerRadius: number; // meters - how close user needs to be to trigger
-  audioFile: string; // relative path within tour folder
-  audioDuration: number; // seconds
-  imageFile?: string; // relative path within tour folder
-  script: string; // full transcript text
-  directionToNext?: string; // navigation instruction to next stop
-  distanceToNext?: number; // meters to next stop
+  triggerRadius: number; // meters
+  audioFile: string;
+  imageFile?: string;
+  script?: string;
+  directionToNext?: string;
+  estimatedDuration?: number; // seconds
 }
 
-export interface TourRoute {
-  type: 'walking' | 'cycling';
-  waypoints: [number, number][]; // [latitude, longitude] pairs for drawing route
+export interface TourStartPoint {
+  latitude: number;
+  longitude: number;
+  address?: string;
+  instructions?: string;
+}
+
+export interface TourAccessibility {
+  wheelchairAccessible?: boolean;
+  hasStairs?: boolean;
+  strollerFriendly?: boolean;
+  terrainType?: 'paved' | 'gravel' | 'mixed' | 'rough';
 }
 
 export interface Tour {
   id: string;
   name: string;
-  description: string;
+  description?: string;
+  version: string;
+  author?: string;
   language: string;
-  estimatedDuration: number; // minutes
-  totalDistance: number; // kilometers
-  createdDate: string;
-  author: string;
+  stops: TourStop[];
+  startPoint: TourStartPoint;
   coverImage?: string;
-  startPoint: {
+  totalDistance?: number; // km
+  estimatedDuration: number; // minutes
+  difficulty?: 'easy' | 'moderate' | 'challenging';
+  accessibility?: TourAccessibility;
+  bestTimeToVisit?: string;
+  tips?: string;
+  route?: TourRoute;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TourRoute {
+  coordinates: Array<{
     latitude: number;
     longitude: number;
-    instruction: string;
-  };
-  stops: TourStop[];
-  route: TourRoute;
+  }>;
+  detailedPath?: GeoJSON.LineString;
 }
 
-// Runtime state types
+// Location Types
 
-export interface TourProgress {
-  tourId: string;
-  currentStopIndex: number;
-  visitedStops: Set<number>;
-  isPlaying: boolean;
-  startedAt?: Date;
-  completedAt?: Date;
-}
-
-export interface AudioState {
-  isLoaded: boolean;
-  isPlaying: boolean;
-  position: number; // milliseconds
-  duration: number; // milliseconds
-  playbackSpeed: number;
+export interface UserLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  heading?: number;
+  speed?: number;
+  timestamp?: number;
 }
 
 export interface LocationState {
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
-  heading: number | null;
-  timestamp: number;
+  location: UserLocation | null;
+  error: string | null;
+  isTracking: boolean;
+  permissionStatus: 'granted' | 'denied' | 'undetermined';
 }
 
-// Settings types
+// Audio Types
+
+export interface AudioState {
+  isPlaying: boolean;
+  isLoading: boolean;
+  duration: number; // milliseconds
+  position: number; // milliseconds
+  error: string | null;
+}
+
+export interface AudioPlayerControls {
+  play: () => Promise<void>;
+  pause: () => Promise<void>;
+  stop: () => Promise<void>;
+  seek: (position: number) => Promise<void>;
+  loadAudio: (uri: string) => Promise<void>;
+}
+
+// Progress Types
+
+export interface TourProgress {
+  currentStopIndex: number;
+  completedStopIds: number[];
+  isComplete: boolean;
+}
+
+export interface SavedProgress {
+  tourId: string;
+  currentStopIndex: number;
+  completedStopIds: number[];
+  lastPlayedAt: string;
+  audioPosition?: number;
+  isComplete: boolean;
+  totalStops: number;
+}
+
+// Settings Types
 
 export interface AppSettings {
-  defaultPlaybackSpeed: number;
-  autoPlayEnabled: boolean;
-  defaultTriggerRadius: number;
+  autoPlayAudio: boolean;
+  hapticFeedback: boolean;
   keepScreenOn: boolean;
-  showDistanceInMeters: boolean; // vs feet
-  autoPlayDirections: boolean; // Speak navigation directions after main audio
-  defaultToManualMode: boolean; // Start in manual mode by default
+  audioVolume: number;
+  distanceUnit: 'km' | 'miles';
+  defaultTriggerRadius: number;
+  showTranscripts: boolean;
+  highContrastMode: boolean;
 }
 
-// Navigation types for React Navigation
+export const DEFAULT_SETTINGS: AppSettings = {
+  autoPlayAudio: true,
+  hapticFeedback: true,
+  keepScreenOn: true,
+  audioVolume: 1.0,
+  distanceUnit: 'km',
+  defaultTriggerRadius: 30,
+  showTranscripts: true,
+  highContrastMode: false,
+};
+
+// Geofence Types
+
+export interface GeofenceEvent {
+  stopIndex: number;
+  enteredAt: Date;
+  exitedAt?: Date;
+}
+
+export interface GeofenceState {
+  isInGeofence: boolean;
+  currentGeofenceStopId: number | null;
+  distanceToNextStop: number | null;
+  events: GeofenceEvent[];
+}
+
+// Offline Types
+
+export interface OfflineStatus {
+  audio: boolean;
+  images: boolean;
+  maps: boolean;
+}
+
+export interface DownloadProgress {
+  downloaded: number;
+  total: number;
+  currentFile: string;
+  stage: 'audio' | 'images' | 'maps' | 'complete';
+}
+
+// Navigation Types
 
 export type RootStackParamList = {
   Home: undefined;
-  Tour: { tourId: string };
+  TourDetail: { tour: Tour };
+  Tour: { tour: Tour; resumeFromStop?: number };
   Settings: undefined;
-  TourCreator: undefined;
 };
 
-export type TabParamList = {
-  Tours: undefined;
-  Settings: undefined;
-};
+// Direction Types
+
+export interface WalkingDirection {
+  instruction: string;
+  distance: number; // meters
+  duration: number; // seconds
+  maneuver?: string;
+}
+
+export interface RouteSegment {
+  fromStopId: number;
+  toStopId: number;
+  distance: number; // meters
+  duration: number; // seconds
+  directions: WalkingDirection[];
+  geometry?: GeoJSON.LineString;
+}
+
+// GeoJSON Types (simplified for our use)
+declare namespace GeoJSON {
+  interface LineString {
+    type: 'LineString';
+    coordinates: Array<[number, number]>;
+  }
+}
+
+// Export convenience type for stop with optional properties filled
+export type CompleteStop = Required<TourStop>;
+
+// Map Types
+
+export interface MapRegion {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
+
+export interface MapMarker {
+  id: string | number;
+  coordinate: {
+    latitude: number;
+    longitude: number;
+  };
+  title?: string;
+  description?: string;
+  pinColor?: string;
+}

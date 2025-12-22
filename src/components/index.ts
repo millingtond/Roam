@@ -1,7 +1,22 @@
-export { AudioPlayerBar } from './AudioPlayerBar';
-export { MapDisplay } from './MapDisplay';
-export { StopListPanel, UpNextPanel } from './StopListPanel';
-export { ScriptViewer, EndTourDialog, PhotoViewer } from './ScriptViewer';
-export { NavigationControls, ManualModeBar } from './NavigationControls';
-export { RouteDirections, DirectionBanner } from './RouteDirections';
-export { OfflineManager, OfflineStatusBadge } from './OfflineManager';
+// Hooks index - export all hooks for easy importing
+
+export { useAudioPlayer } from './useAudioPlayer';
+export { useGeofence } from './useGeofence';
+export { useLocation } from './useLocation';
+export { useSettings } from './useSettings';
+export { useTourProgress } from './useTourProgress';
+export {
+  useFavorites,
+  useTourRatings,
+  useTourNotes,
+  useTourProgressData,
+  useTourUserData,
+} from './useTourUserData';
+
+// Re-export types from useTourUserData
+export type {
+  TourRating,
+  TourNote,
+  TourProgressData,
+  LastPlayedTour,
+} from './useTourUserData';

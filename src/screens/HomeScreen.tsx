@@ -1,314 +1,540 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  FlatList,
   StyleSheet,
+  FlatList,
+  TouchableOpacity,
   RefreshControl,
   Alert,
+  ActionSheetIOS,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList, Tour } from '../types';
-import { listTours, loadTour, ensureToursDirectory, getTourStats } from '../services';
-import { OfflineStatusBadge } from '../components';
-import { seedSampleTour } from '../services/seedData';
+import * as FileSystem from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+import { Tour } from '../types';
+import { TourCard } from '../components/TourCard';
+import { ResumeTourBanner } from '../components/ResumeTourBanner';
+import { TourRatingModal } from '../components/TourRatingModal';
+import { TourNotesModal } from '../components/TourNotesModal';
+import { ShareTourModal } from '../components/ShareTourModal';
+import { OfflineManager } from '../components/OfflineManager';
+import {
+  useFavorites,
+  useTourRatings,
+  useTourNotes,
+  useTourProgressData,
+} from '../hooks/useTourUserData';
+
+// Storage key for dismissed resume banner
+const DISMISSED_RESUME_KEY = 'dismissed_resume_tour';
 
 interface HomeScreenProps {
-  navigation: HomeScreenNavigationProp;
+  navigation: any;
 }
 
-interface TourListItem {
-  id: string;
-  name: string;
-  path: string;
-  tour?: Tour;
-}
+type FilterType = 'all' | 'favorites' | 'in-progress' | 'completed';
 
 export function HomeScreen({ navigation }: HomeScreenProps) {
-  const [tours, setTours] = useState<TourListItem[]>([]);
+  const insets = useSafeAreaInsets();
+  
+  // Tours data
+  const [tours, setTours] = useState<Tour[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [offlineStatus, setOfflineStatus] = useState<Record<string, boolean>>({});
+  
+  // Filter state
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  
+  // Modal states
+  const [selectedTour, setSelectedTour] = useState<Tour | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showOfflineModal, setShowOfflineModal] = useState(false);
+  
+  // Resume banner state
+  const [showResumeBanner, setShowResumeBanner] = useState(true);
+  
+  // User data hooks
+  const { favorites, isFavorite, toggleFavorite } = useFavorites();
+  const { ratings, getRating, setRating, deleteRating } = useTourRatings();
+  const { notes, getNotesForTour, addNote, updateNote, deleteNote } = useTourNotes();
+  const { lastPlayed, getProgressPercentage, clearProgress } = useTourProgressData();
 
-  const loadTours = useCallback(async () => {
-    try {
-      await ensureToursDirectory();
-      const tourList = await listTours();
-      
-      // Load full tour data for each tour (for stats display)
-      const toursWithData: TourListItem[] = await Promise.all(
-        tourList.map(async (item) => {
-          const result = await loadTour(item.id);
-          return {
-            ...item,
-            tour: result?.tour,
-          };
-        })
-      );
-      
-      setTours(toursWithData);
-    } catch (error) {
-      console.error('Error loading tours:', error);
-      Alert.alert('Error', 'Failed to load tours');
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
+  // Load tours
+  useEffect(() => {
+    loadTours();
+    checkDismissedResume();
   }, []);
 
-  useEffect(() => {
-    const init = async () => {
-      console.log('🚀 Auto-running repair script...');
-      await seedSampleTour();
-      loadTours();
-    };
-    init();
-  }, [loadTours]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadTours();
-  }, [loadTours]);
-
-  const handleTourPress = (tourId: string) => {
-    navigation.navigate('Tour', { tourId });
+  const loadTours = async () => {
+    try {
+      // Load tours from the assets or documents directory
+      const toursDir = FileSystem.documentDirectory + 'tours/';
+      const dirInfo = await FileSystem.getInfoAsync(toursDir);
+      
+      if (dirInfo.exists) {
+        const files = await FileSystem.readDirectoryAsync(toursDir);
+        const tourFiles = files.filter(f => f.endsWith('.json'));
+        
+        const loadedTours: Tour[] = [];
+        for (const file of tourFiles) {
+          try {
+            const content = await FileSystem.readAsStringAsync(toursDir + file);
+            const tour = JSON.parse(content);
+            loadedTours.push(tour);
+          } catch (e) {
+            console.warn(`Failed to load tour ${file}:`, e);
+          }
+        }
+        setTours(loadedTours);
+      } else {
+        // Load sample tour from assets
+        // In production, this would load from your API or bundled assets
+        setTours([createSampleTour()]);
+      }
+      
+      // Check offline status for each tour
+      await checkAllOfflineStatus();
+    } catch (error) {
+      console.error('Failed to load tours:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const renderTourItem = ({ item }: { item: TourListItem }) => {
-    const stats = item.tour ? getTourStats(item.tour) : null;
+  const checkAllOfflineStatus = async () => {
+    const offlineDir = FileSystem.documentDirectory + 'offline/';
+    const status: Record<string, boolean> = {};
+    
+    for (const tour of tours) {
+      const tourOfflineDir = offlineDir + tour.id + '/';
+      const info = await FileSystem.getInfoAsync(tourOfflineDir);
+      status[tour.id] = info.exists;
+    }
+    
+    setOfflineStatus(status);
+  };
 
+  const checkDismissedResume = async () => {
+    try {
+      const dismissed = await AsyncStorage.getItem(DISMISSED_RESUME_KEY);
+      if (dismissed) {
+        const { tourId, timestamp } = JSON.parse(dismissed);
+        // Only hide if dismissed within last 24 hours for same tour
+        const dayAgo = Date.now() - 86400000;
+        if (lastPlayed && tourId === lastPlayed.tourId && new Date(timestamp).getTime() > dayAgo) {
+          setShowResumeBanner(false);
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+  };
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await loadTours();
+    setIsRefreshing(false);
+  }, []);
+
+  const handleTourPress = (tour: Tour) => {
+    navigation.navigate('TourDetail', { tour });
+  };
+
+  const handleResumeTour = () => {
+    if (lastPlayed) {
+      const tour = tours.find(t => t.id === lastPlayed.tourId);
+      if (tour) {
+        navigation.navigate('Tour', { 
+          tour, 
+          resumeFromStop: lastPlayed.currentStopIndex 
+        });
+      }
+    }
+  };
+
+  const handleDismissResume = async () => {
+    setShowResumeBanner(false);
+    if (lastPlayed) {
+      try {
+        await AsyncStorage.setItem(DISMISSED_RESUME_KEY, JSON.stringify({
+          tourId: lastPlayed.tourId,
+          timestamp: new Date().toISOString(),
+        }));
+      } catch (e) {
+        // Ignore
+      }
+    }
+  };
+
+  const handleFavoriteToggle = async (tourId: string) => {
+    await toggleFavorite(tourId);
+  };
+
+  const handleOptionsPress = (tour: Tour) => {
+    setSelectedTour(tour);
+    
+    const options = [
+      'Rate Tour',
+      'View Notes',
+      'Share Tour',
+      'Download for Offline',
+      'Cancel',
+    ];
+    
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex: options.length - 1,
+          title: tour.name,
+        },
+        (buttonIndex) => {
+          handleOptionSelected(buttonIndex, tour);
+        }
+      );
+    } else {
+      // Android: Use Alert or a custom modal
+      Alert.alert(
+        tour.name,
+        'Choose an action',
+        options.slice(0, -1).map((option, index) => ({
+          text: option,
+          onPress: () => handleOptionSelected(index, tour),
+        })).concat([{ text: 'Cancel', style: 'cancel' }])
+      );
+    }
+  };
+
+  const handleOptionSelected = (index: number, tour: Tour) => {
+    switch (index) {
+      case 0: // Rate Tour
+        setSelectedTour(tour);
+        setShowRatingModal(true);
+        break;
+      case 1: // View Notes
+        setSelectedTour(tour);
+        setShowNotesModal(true);
+        break;
+      case 2: // Share Tour
+        setSelectedTour(tour);
+        setShowShareModal(true);
+        break;
+      case 3: // Download for Offline
+        setSelectedTour(tour);
+        setShowOfflineModal(true);
+        break;
+    }
+  };
+
+  const handleRatingSubmit = async (rating: number, review: string) => {
+    if (selectedTour) {
+      await setRating(selectedTour.id, rating, review);
+    }
+  };
+
+  const handleRatingDelete = async () => {
+    if (selectedTour) {
+      await deleteRating(selectedTour.id);
+      setShowRatingModal(false);
+    }
+  };
+
+  // Filter tours based on active filter
+  const filteredTours = tours.filter(tour => {
+    switch (activeFilter) {
+      case 'favorites':
+        return isFavorite(tour.id);
+      case 'in-progress':
+        const progress = getProgressPercentage(tour.id);
+        return progress > 0 && progress < 100;
+      case 'completed':
+        return getProgressPercentage(tour.id) === 100;
+      default:
+        return true;
+    }
+  });
+
+  const renderTourCard = ({ item: tour }: { item: Tour }) => {
+    const rating = getRating(tour.id);
+    const tourNotes = getNotesForTour(tour.id);
+    const progress = getProgressPercentage(tour.id);
+    
     return (
-      <TouchableOpacity
-        style={styles.tourCard}
-        onPress={() => handleTourPress(item.id)}
-      >
-        <View style={styles.tourImagePlaceholder}>
-          <Ionicons name="map-outline" size={40} color="#0891b2" />
-        </View>
-
-        <View style={styles.tourInfo}>
-          <Text style={styles.tourName}>{item.name}</Text>
-          
-          {item.tour && (
-            <Text style={styles.tourDescription} numberOfLines={2}>
-              {item.tour.description}
-            </Text>
-          )}
-
-          {stats && (
-            <View style={styles.tourStats}>
-              <View style={styles.stat}>
-                <Ionicons name="location-outline" size={14} color="#666" />
-                <Text style={styles.statText}>{stats.totalStops} stops</Text>
-              </View>
-              <View style={styles.stat}>
-                <Ionicons name="time-outline" size={14} color="#666" />
-                <Text style={styles.statText}>{stats.estimatedDuration} min</Text>
-              </View>
-              <View style={styles.stat}>
-                <Ionicons name="walk-outline" size={14} color="#666" />
-                <Text style={styles.statText}>{stats.totalDistance} km</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        <Ionicons name="chevron-forward" size={24} color="#ccc" />
-      </TouchableOpacity>
+      <TourCard
+        tour={tour}
+        isFavorite={isFavorite(tour.id)}
+        rating={rating?.rating}
+        noteCount={tourNotes.length}
+        progressPercentage={progress}
+        isOfflineReady={offlineStatus[tour.id] || false}
+        onPress={() => handleTourPress(tour)}
+        onFavoriteToggle={() => handleFavoriteToggle(tour.id)}
+        onOptionsPress={() => handleOptionsPress(tour)}
+      />
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="map" size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>No Tours Yet</Text>
-      <TouchableOpacity
-        style={{
-          marginTop: 20,
-          backgroundColor: '#f59e0b',
-          padding: 15,
-          borderRadius: 8,
-          alignItems: 'center',
-        }}
-        onPress={async () => {
-          const success = await seedSampleTour();
-          if (success) {
-            Alert.alert('Success', 'Sample tour created! Pull down to refresh.');
-            onRefresh();
-          } else {
-            Alert.alert('Error', 'Failed to create sample tour.');
-          }
-        }}
-      >
-        <Text style={{ color: 'white', fontWeight: 'bold' }}>
-          🛠️ Generate Debug Tour
-        </Text>
-      </TouchableOpacity>
-      <Text style={styles.emptyText}>
-        Add tour folders to your device's Documents/tours directory to get started.
-      </Text>
-      
-      <View style={styles.instructionBox}>
-        <Text style={styles.instructionTitle}>How to add tours:</Text>
-        <Text style={styles.instructionText}>
-          1. Create a folder with your tour ID{'\n'}
-          2. Add a tour.json file with stop data{'\n'}
-          3. Add audio/ folder with MP3 files{'\n'}
-          4. Add images/ folder with photos{'\n'}
-          5. Pull to refresh this screen
-        </Text>
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      {/* Resume Banner */}
+      {showResumeBanner && lastPlayed && (
+        <ResumeTourBanner
+          lastPlayed={lastPlayed}
+          onResume={handleResumeTour}
+          onDismiss={handleDismissResume}
+        />
+      )}
+
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        {(['all', 'favorites', 'in-progress', 'completed'] as FilterType[]).map(filter => (
+          <TouchableOpacity
+            key={filter}
+            style={[
+              styles.filterTab,
+              activeFilter === filter && styles.filterTabActive,
+            ]}
+            onPress={() => setActiveFilter(filter)}
+          >
+            <Text
+              style={[
+                styles.filterTabText,
+                activeFilter === filter && styles.filterTabTextActive,
+              ]}
+            >
+              {filter === 'all' ? 'All Tours' :
+               filter === 'favorites' ? 'Favorites' :
+               filter === 'in-progress' ? 'In Progress' : 'Completed'}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
+    </View>
+  );
+
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons
+        name={
+          activeFilter === 'favorites' ? 'heart-outline' :
+          activeFilter === 'in-progress' ? 'play-circle-outline' :
+          activeFilter === 'completed' ? 'checkmark-circle-outline' :
+          'map-outline'
+        }
+        size={64}
+        color="#d1d5db"
+      />
+      <Text style={styles.emptyTitle}>
+        {activeFilter === 'favorites' ? 'No Favorites Yet' :
+         activeFilter === 'in-progress' ? 'No Tours In Progress' :
+         activeFilter === 'completed' ? 'No Completed Tours' :
+         'No Tours Available'}
+      </Text>
+      <Text style={styles.emptyText}>
+        {activeFilter === 'favorites'
+          ? 'Tap the heart icon on any tour to add it to your favorites.'
+          : activeFilter === 'in-progress'
+          ? 'Start a tour and your progress will appear here.'
+          : activeFilter === 'completed'
+          ? 'Complete a tour to see it here.'
+          : 'Add tours to get started exploring!'}
+      </Text>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Audio Tours</Text>
+        <Text style={styles.title}>Audio Tours</Text>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
         >
-          <Ionicons name="settings-outline" size={24} color="#333" />
+          <Ionicons name="settings-outline" size={24} color="#374151" />
         </TouchableOpacity>
       </View>
 
+      {/* Tour List */}
       <FlatList
-        data={tours}
-        keyExtractor={(item) => item.id}
-        renderItem={renderTourItem}
-        contentContainerStyle={tours.length === 0 ? styles.emptyContainer : styles.listContainer}
-        ListEmptyComponent={!isLoading ? renderEmptyState : null}
+        data={filteredTours}
+        keyExtractor={item => item.id}
+        renderItem={renderTourCard}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#0891b2']}
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#0891b2"
           />
         }
       />
+
+      {/* Modals */}
+      {selectedTour && (
+        <>
+          <TourRatingModal
+            visible={showRatingModal}
+            tourName={selectedTour.name}
+            currentRating={getRating(selectedTour.id)?.rating}
+            currentReview={getRating(selectedTour.id)?.review}
+            onClose={() => setShowRatingModal(false)}
+            onSubmit={handleRatingSubmit}
+            onDelete={getRating(selectedTour.id) ? handleRatingDelete : undefined}
+          />
+
+          <TourNotesModal
+            visible={showNotesModal}
+            tourId={selectedTour.id}
+            tourName={selectedTour.name}
+            stops={selectedTour.stops}
+            notes={getNotesForTour(selectedTour.id)}
+            onClose={() => setShowNotesModal(false)}
+            onAddNote={(text, stopId) => addNote(selectedTour.id, text, stopId)}
+            onUpdateNote={updateNote}
+            onDeleteNote={deleteNote}
+          />
+
+          <ShareTourModal
+            visible={showShareModal}
+            tour={selectedTour}
+            onClose={() => setShowShareModal(false)}
+          />
+
+          <OfflineManager
+            visible={showOfflineModal}
+            tour={selectedTour}
+            basePath={FileSystem.documentDirectory + 'tours/' + selectedTour.id + '/'}
+            onClose={() => setShowOfflineModal(false)}
+            onDownloadComplete={() => {
+              setOfflineStatus(prev => ({ ...prev, [selectedTour.id]: true }));
+            }}
+          />
+        </>
+      )}
     </View>
   );
+}
+
+// Sample tour for testing
+function createSampleTour(): Tour {
+  return {
+    id: 'sample-tour',
+    name: 'Sample Walking Tour',
+    description: 'A demonstration tour to showcase the app features.',
+    version: '1.0',
+    author: 'Audio Tour App',
+    language: 'en',
+    stops: [
+      {
+        id: 1,
+        name: 'Starting Point',
+        latitude: 53.4808,
+        longitude: -2.2426,
+        triggerRadius: 30,
+        audioFile: 'audio/stop1.mp3',
+        script: 'Welcome to the tour!',
+      },
+      {
+        id: 2,
+        name: 'Second Stop',
+        latitude: 53.4815,
+        longitude: -2.2440,
+        triggerRadius: 30,
+        audioFile: 'audio/stop2.mp3',
+        script: 'This is the second stop.',
+      },
+    ],
+    startPoint: {
+      latitude: 53.4808,
+      longitude: -2.2426,
+      address: 'Manchester, UK',
+    },
+    totalDistance: 0.5,
+    estimatedDuration: 30,
+  };
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f9fafb',
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingVertical: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#e5e7eb',
   },
-  headerTitle: {
+  title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    color: '#111827',
   },
   settingsButton: {
     padding: 8,
   },
-  listContainer: {
-    padding: 16,
+  headerContainer: {
+    paddingTop: 16,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 8,
+  },
+  filterTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+  },
+  filterTabActive: {
+    backgroundColor: '#0891b2',
+  },
+  filterTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  filterTabTextActive: {
+    color: 'white',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
   },
   emptyContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  tourCard: {
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tourImagePlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: '#f0f9ff',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tourInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  tourName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  tourDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  tourStats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  stat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  statText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingVertical: 60,
+    paddingHorizontal: 40,
   },
   emptyTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#374151',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  instructionBox: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    width: '100%',
-  },
-  instructionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  instructionText: {
     fontSize: 14,
-    color: '#666',
-    lineHeight: 22,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
