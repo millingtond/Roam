@@ -158,29 +158,49 @@ export function DirectionBanner({
     return `${(meters / 1000).toFixed(1)}km`;
   };
 
-  // Determine icon based on direction text
+  // Logic to determine the icon based on keywords in the text
   const getDirectionIcon = (): string => {
     const lower = direction.toLowerCase();
+    
+    // Check for specific movements
+    if (lower.includes('u-turn')) return 'arrow-u-turn-left';
+    if (lower.includes('sharp left')) return 'arrow-undo'; // approximations for sharp turns
+    if (lower.includes('sharp right')) return 'arrow-redo';
     if (lower.includes('left')) return 'arrow-back';
     if (lower.includes('right')) return 'arrow-forward';
-    if (lower.includes('back') || lower.includes('return')) return 'arrow-undo';
-    if (lower.includes('cross')) return 'git-compare';
-    return 'arrow-up'; // Default: straight ahead
+    if (lower.includes('straight') || lower.includes('continue')) return 'arrow-up';
+    if (lower.includes('enter') || lower.includes('inside')) return 'enter-outline';
+    if (lower.includes('cross')) return 'swap-vertical';
+    
+    // Default fallback
+    return 'navigate'; 
   };
+
+  // Determine icon color based on the type of action (optional visual flair)
+  const iconName = getDirectionIcon();
 
   return (
     <View style={bannerStyles.container}>
-      <View style={bannerStyles.iconContainer}>
-        <Ionicons name={getDirectionIcon() as any} size={24} color="white" />
+      <View style={bannerStyles.iconWrapper}>
+        <Ionicons name={iconName as any} size={32} color="white" />
       </View>
       <View style={bannerStyles.textContainer}>
-        <Text style={bannerStyles.directionText} numberOfLines={2}>
-          {direction}
-        </Text>
-        {distance && nextStopName && (
-          <Text style={bannerStyles.distanceText}>
-            {formatDistance(distance)} to {nextStopName}
+        <View style={bannerStyles.primaryRow}>
+          <Text style={bannerStyles.directionText} numberOfLines={1}>
+            {direction.split('.')[0]} {/* Show only the first sentence for brevity */}
           </Text>
+        </View>
+        
+        {distance && nextStopName && (
+          <View style={bannerStyles.secondaryRow}>
+            <Text style={bannerStyles.distanceText}>
+              {formatDistance(distance)}
+            </Text>
+            <Text style={bannerStyles.separator}>•</Text>
+            <Text style={bannerStyles.destinationText} numberOfLines={1}>
+              {nextStopName}
+            </Text>
+          </View>
         )}
       </View>
     </View>
@@ -288,34 +308,57 @@ const bannerStyles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
+    left: 16,
+    right: 16,
+    marginTop: 50, // Position below the status bar/header area
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0891b2',
+    backgroundColor: '#1e293b', // Dark background for high contrast
     padding: 12,
-    paddingTop: 50, // Account for status bar
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  iconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#0891b2',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   textContainer: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  primaryRow: {
+    marginBottom: 4,
   },
   directionText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: 'white',
   },
+  secondaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   distanceText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#38bdf8', // Light blue accent
+  },
+  separator: {
+    color: '#94a3b8',
+    marginHorizontal: 6,
+  },
+  destinationText: {
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
+    color: '#cbd5e1', // Light gray
+    flex: 1,
   },
 });

@@ -10,7 +10,9 @@ export interface TourStop {
   imageFile?: string;
   script?: string;
   directionToNext?: string;
+  distanceToNext?: number; // meters
   estimatedDuration?: number; // seconds
+  nameTranslated?: string;
 }
 
 export interface TourStartPoint {
@@ -77,10 +79,12 @@ export interface LocationState {
 // Audio Types
 
 export interface AudioState {
+  isLoaded: boolean;
   isPlaying: boolean;
   isLoading: boolean;
   duration: number; // milliseconds
   position: number; // milliseconds
+  playbackSpeed: number;
   error: string | null;
 }
 

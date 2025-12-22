@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { Tour } from '../types';
 
 const TOURS_DIRECTORY = FileSystem.documentDirectory + 'tours/';

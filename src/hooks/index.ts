@@ -1,6 +1,6 @@
 // Hooks index - export all hooks for easy importing
 
-export { useAudioPlayer } from './useAudioPlayer';
+export * from './useAudioPlayer';
 export { useGeofence } from './useGeofence';
 export { useLocation } from './useLocation';
 export { useSettings } from './useSettings';
