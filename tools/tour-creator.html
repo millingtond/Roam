@@ -1,0 +1,2783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Tour Creator Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --bg-primary: #fafafa;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --border-color: #e5e7eb;
+            --accent: #0891b2;
+            --accent-hover: #0e7490;
+            --accent-light: #ecfeff;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --accent-light: #164e63;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), #06b6d4);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+        }
+
+        .logo h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .logo span {
+            font-size: 11px;
+            background: var(--accent-light);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            padding: 0 24px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 0;
+            font-size: 13px;
+        }
+
+        .stat-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .stat-icon.distance { background: #dbeafe; }
+        .stat-icon.time { background: #fce7f3; }
+        .stat-icon.stops { background: #d1fae5; }
+        .stat-icon.calories { background: #fef3c7; }
+
+        .stat-value {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: #fecaca;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Header Actions */
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--border-color);
+        }
+
+        /* Undo/Redo */
+        .undo-redo {
+            display: flex;
+            gap: 4px;
+            margin-right: 8px;
+        }
+
+        .undo-redo button {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .undo-redo button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .undo-redo button:not(:disabled):hover {
+            background: var(--border-color);
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 320px 1fr 380px;
+            height: calc(100vh - 100px);
+        }
+
+        /* Left Panel - Stops List */
+        .left-panel {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .stop-count {
+            font-size: 12px;
+            background: var(--accent-light);
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .stop-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .stop-card {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .stop-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stop-card.active {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .stop-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .stop-number {
+            width: 26px;
+            height: 26px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .stop-name {
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stop-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .stop-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stop-directions-preview {
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding: 8px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            margin-top: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .stop-directions-preview.missing {
+            background: var(--warning-light);
+            color: #92400e;
+        }
+
+        .stop-card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .stop-card-actions button {
+            flex: 1;
+            padding: 6px;
+            font-size: 11px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .stop-card-actions button:hover {
+            background: var(--border-color);
+        }
+
+        .stop-card-actions button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Center - Map */
+        .center-panel {
+            position: relative;
+            background: var(--bg-tertiary);
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .search-container {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-container input {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            background: var(--bg-secondary);
+            box-shadow: var(--shadow-lg);
+            font-family: inherit;
+            color: var(--text-primary);
+        }
+
+        .search-container input:focus {
+            outline: 2px solid var(--accent);
+        }
+
+        .search-container button {
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+
+        .search-container button:hover {
+            background: var(--bg-tertiary);
+        }
+
+        /* Map Toolbar */
+        .map-toolbar {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+            background: var(--bg-secondary);
+            padding: 8px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .map-toolbar button {
+            padding: 10px 16px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            font-family: inherit;
+            color: var(--text-primary);
+        }
+
+        .map-toolbar button:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .map-toolbar button.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Generating overlay */
+        .generating-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-secondary);
+            padding: 24px 32px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            z-index: 1001;
+            text-align: center;
+            display: none;
+        }
+
+        .generating-overlay.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Right Panel - Editor */
+        .right-panel {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .editor-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 14px;
+            background: transparent;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+            font-family: inherit;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .label-hint {
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .char-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        /* Script Stats */
+        .script-stats {
+            display: flex;
+            gap: 16px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+        }
+
+        .script-stat {
+            text-align: center;
+        }
+
+        .script-stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .script-stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* AI Helper */
+        .ai-helper {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .ai-helper h4 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .ai-helper p {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 12px;
+        }
+
+        .ai-helper button {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .ai-helper button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Direction Generator */
+        .direction-section {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .direction-section h4 {
+            font-size: 13px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .direction-status {
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        .direction-status.generated {
+            background: var(--success-light);
+            color: #065f46;
+        }
+
+        .direction-status.missing {
+            background: var(--warning-light);
+            color: #92400e;
+        }
+
+        /* Empty Editor */
+        .empty-editor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .empty-editor svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.4;
+        }
+
+        .empty-editor h3 {
+            font-size: 18px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        /* Modals */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--border-color);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-md);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .code-block .copy-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            background: var(--bg-secondary);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid;
+        }
+
+        .toast.success {
+            border-color: var(--success);
+        }
+
+        .toast.error {
+            border-color: var(--danger);
+        }
+
+        .toast.info {
+            border-color: var(--accent);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Difficulty & Accessibility */
+        .difficulty-selector {
+            display: flex;
+            gap: 8px;
+        }
+
+        .difficulty-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-primary);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .difficulty-btn.selected {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .difficulty-btn span {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        .difficulty-btn small {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* Accessibility Checkboxes */
+        .accessibility-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .accessibility-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .accessibility-option:hover {
+            background: var(--border-color);
+        }
+
+        .accessibility-option input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+        }
+
+        /* Dropdown */
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            min-width: 200px;
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
+            color: var(--text-primary);
+        }
+
+        .dropdown-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 4px 0;
+        }
+
+        /* Leaflet Marker Custom */
+        .custom-marker {
+            background: var(--accent);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .custom-marker.selected {
+            background: #8b5cf6;
+            transform: scale(1.2);
+        }
+
+        /* Route info panel */
+        .route-info-panel {
+            position: absolute;
+            bottom: 80px;
+            left: 16px;
+            background: var(--bg-secondary);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            max-width: 280px;
+            display: none;
+        }
+
+        .route-info-panel.show {
+            display: block;
+        }
+
+        .route-info-panel h4 {
+            font-size: 13px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .route-info-panel p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .route-segment {
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .route-segment strong {
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <div class="logo-icon">🎧</div>
+                <h1>Audio Tour Creator<span>Pro</span></h1>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="undo-redo">
+                <button onclick="undo()" id="undoBtn" disabled title="Undo (Ctrl+Z)">↶</button>
+                <button onclick="redo()" id="redoBtn" disabled title="Redo (Ctrl+Y)">↷</button>
+            </div>
+            <button class="btn btn-secondary" onclick="openTourSettings()">⚙️ Settings</button>
+            <button class="btn btn-success" onclick="generateAllDirections()">🧭 Auto-Directions</button>
+            <div class="dropdown">
+                <button class="btn btn-primary" onclick="toggleExportMenu()">📦 Export ▾</button>
+                <div class="dropdown-menu" id="exportMenu">
+                    <button class="dropdown-item" onclick="exportTour()">📄 Export tour.json</button>
+                    <button class="dropdown-item" onclick="exportGPX()">🗺️ Export GPX</button>
+                    <button class="dropdown-item" onclick="exportCSV()">📊 Export CSV</button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item" onclick="exportPythonCommands()">🐍 Audio Commands</button>
+                    <button class="dropdown-item" onclick="exportAIPrompts()">🤖 AI Script Prompts</button>
+                </div>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode" id="themeBtn">🌙</button>
+        </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-icon distance">📏</div>
+            <div>
+                <div class="stat-value" id="totalDistance">0 km</div>
+                <div class="stat-label">Total Distance</div>
+            </div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-icon time">⏱️</div>
+            <div>
+                <div class="stat-value" id="totalTime">0 min</div>
+                <div class="stat-label">Walking Time</div>
+            </div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-icon stops">📍</div>
+            <div>
+                <div class="stat-value" id="stopCount">0</div>
+                <div class="stat-label">Stops</div>
+            </div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-icon calories">🔥</div>
+            <div>
+                <div class="stat-value" id="totalCalories">0 kcal</div>
+                <div class="stat-label">Est. Calories</div>
+            </div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-icon" style="background: #e0e7ff;">🎙️</div>
+            <div>
+                <div class="stat-value" id="totalAudioTime">0 min</div>
+                <div class="stat-label">Audio Duration</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Panel - Stop List -->
+        <div class="left-panel">
+            <div class="panel-header">
+                <h2>Tour Stops</h2>
+                <span class="stop-count" id="stopCountBadge">0 stops</span>
+            </div>
+            <div class="stop-list" id="stopList">
+                <!-- Stops will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Center - Map -->
+        <div class="center-panel">
+            <div id="map"></div>
+            
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search for a city or place..." 
+                       onkeypress="if(event.key==='Enter')searchLocation()">
+                <button onclick="searchLocation()">🔍</button>
+            </div>
+
+            <div class="map-toolbar">
+                <button onclick="optimizeRoute()" title="Reorder stops for shortest walking distance">
+                    🔀 Optimize Route
+                </button>
+                <button onclick="fitAllStops()" title="Show all stops on map">
+                    🗺️ Fit All
+                </button>
+                <button onclick="clearAllStops()" class="danger" title="Remove all stops">
+                    🗑️ Clear All
+                </button>
+            </div>
+
+            <div class="generating-overlay" id="generatingOverlay">
+                <div class="spinner"></div>
+                <div id="generatingText">Generating walking directions...</div>
+            </div>
+
+            <div class="route-info-panel" id="routeInfoPanel">
+                <h4>🚶 Route Summary</h4>
+                <div id="routeSegments"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Editor -->
+        <div class="right-panel">
+            <div class="editor-tabs">
+                <button class="tab-btn active" onclick="switchTab('details')">📝 Details</button>
+                <button class="tab-btn" onclick="switchTab('script')">🎙️ Script</button>
+                <button class="tab-btn" onclick="switchTab('directions')">🧭 Directions</button>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-editor" id="emptyEditor">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <h3>No Stop Selected</h3>
+                <p>Click on the map to add a new stop,<br>or select an existing stop to edit it.</p>
+            </div>
+
+            <!-- Details Tab -->
+            <div class="tab-content active" id="detailsTab">
+                <div class="form-group">
+                    <label>Stop Name *</label>
+                    <input type="text" id="editName" placeholder="e.g., Town Hall Square" onchange="saveCurrentStop()">
+                </div>
+
+                <div class="form-group">
+                    <label>Translated Name <span class="label-hint">(optional)</span></label>
+                    <input type="text" id="editNameTranslated" placeholder="e.g., Rynek Główny" onchange="saveCurrentStop()">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitude</label>
+                        <input type="number" id="editLat" step="0.000001" onchange="updateStopPosition()">
+                    </div>
+                    <div class="form-group">
+                        <label>Longitude</label>
+                        <input type="number" id="editLng" step="0.000001" onchange="updateStopPosition()">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Trigger Radius <span class="label-hint">(meters)</span></label>
+                        <input type="number" id="editRadius" value="25" min="10" max="100" onchange="saveCurrentStop()">
+                    </div>
+                    <div class="form-group">
+                        <label>Audio Duration <span class="label-hint">(auto)</span></label>
+                        <input type="text" id="editAudioDuration" readonly>
+                    </div>
+                </div>
+
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                    <button class="btn btn-danger" onclick="deleteCurrentStop()" style="width: 100%;">
+                        🗑️ Delete This Stop
+                    </button>
+                </div>
+            </div>
+
+            <!-- Script Tab -->
+            <div class="tab-content" id="scriptTab">
+                <div class="ai-helper">
+                    <h4>✨ AI Script Helper</h4>
+                    <p>Generate a prompt for Claude or ChatGPT to write your tour script.</p>
+                    <button onclick="generateAIPrompt()">Generate Prompt</button>
+                </div>
+
+                <div class="script-stats">
+                    <div class="script-stat">
+                        <div class="script-stat-value" id="wordCount">0</div>
+                        <div class="script-stat-label">Words</div>
+                    </div>
+                    <div class="script-stat">
+                        <div class="script-stat-value" id="speakingTime">0s</div>
+                        <div class="script-stat-label">Speaking Time</div>
+                    </div>
+                    <div class="script-stat">
+                        <div class="script-stat-value" id="charCount">0</div>
+                        <div class="script-stat-label">Characters</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Audio Script *</label>
+                    <textarea id="editScript" rows="12" 
+                              placeholder="Write what the audio guide will say at this stop..."
+                              oninput="updateScriptStats()" 
+                              onchange="saveCurrentStop()"></textarea>
+                    <div class="char-count">
+                        Aim for 100-200 words (~40-80 seconds of audio)
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary" onclick="previewScript()" style="width: 100%;">
+                    🔊 Preview with Text-to-Speech
+                </button>
+            </div>
+
+            <!-- Directions Tab -->
+            <div class="tab-content" id="directionsTab">
+                <div class="direction-section">
+                    <h4>🧭 Walking Directions to Next Stop</h4>
+                    
+                    <div class="direction-status" id="directionStatus">
+                        Click "Generate" to create walking directions automatically
+                    </div>
+
+                    <button class="btn btn-primary" onclick="generateDirectionsForCurrent()" style="width: 100%; margin-bottom: 16px;">
+                        🗺️ Generate Directions
+                    </button>
+
+                    <div class="form-group">
+                        <label>Direction Text</label>
+                        <textarea id="editDirection" rows="3" 
+                                  placeholder="e.g., Walk north along the main street for 100 meters, then turn left at the fountain..."
+                                  onchange="saveCurrentStop()"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Distance to Next</label>
+                            <input type="text" id="editDistanceToNext" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Walking Time</label>
+                            <input type="text" id="editWalkingTime" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="direction-section" style="background: var(--accent-light);">
+                    <h4 style="color: var(--accent);">💡 Direction Tips</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                        Good walking directions include:
+                    </p>
+                    <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; margin-top: 8px; line-height: 1.8;">
+                        <li>Landmarks to look for</li>
+                        <li>Street names when turning</li>
+                        <li>Approximate distances</li>
+                        <li>What you'll see along the way</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tour Settings Modal -->
+    <div class="modal hidden" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ Tour Settings</h3>
+                <button class="modal-close" onclick="closeModal('settingsModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tour ID <span class="label-hint">(folder name)</span></label>
+                        <input type="text" id="tourId" placeholder="e.g., poznan-old-town">
+                    </div>
+                    <div class="form-group">
+                        <label>Language</label>
+                        <select id="tourLanguage">
+                            <option value="en">English</option>
+                            <option value="pl">Polish</option>
+                            <option value="de">German</option>
+                            <option value="fr">French</option>
+                            <option value="es">Spanish</option>
+                            <option value="it">Italian</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tour Name *</label>
+                    <input type="text" id="tourName" placeholder="e.g., Poznań Old Town Walking Tour">
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="tourDescription" rows="3" placeholder="A brief description of what visitors will experience..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Difficulty</label>
+                    <div class="difficulty-selector">
+                        <button type="button" class="difficulty-btn selected" data-value="easy" onclick="selectDifficulty('easy')">
+                            <span>🟢</span>
+                            <small>Easy</small>
+                        </button>
+                        <button type="button" class="difficulty-btn" data-value="moderate" onclick="selectDifficulty('moderate')">
+                            <span>🟡</span>
+                            <small>Moderate</small>
+                        </button>
+                        <button type="button" class="difficulty-btn" data-value="challenging" onclick="selectDifficulty('challenging')">
+                            <span>🔴</span>
+                            <small>Challenging</small>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Accessibility</label>
+                    <div class="accessibility-options">
+                        <label class="accessibility-option">
+                            <input type="checkbox" id="accessWheelchair"> Wheelchair Accessible
+                        </label>
+                        <label class="accessibility-option">
+                            <input type="checkbox" id="accessStroller"> Stroller Friendly
+                        </label>
+                        <label class="accessibility-option">
+                            <input type="checkbox" id="accessStairs"> Has Stairs
+                        </label>
+                        <label class="accessibility-option">
+                            <input type="checkbox" id="accessUneven"> Uneven Terrain
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Best Time to Visit</label>
+                        <input type="text" id="tourBestTime" placeholder="e.g., Morning, Spring/Summer">
+                    </div>
+                    <div class="form-group">
+                        <label>Author</label>
+                        <input type="text" id="tourAuthor" value="Daniel">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tips for Visitors</label>
+                    <textarea id="tourTips" rows="2" placeholder="e.g., Wear comfortable shoes, bring water..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTourSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Prompt Modal -->
+    <div class="modal hidden" id="aiPromptModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🤖 AI Script Prompt</h3>
+                <button class="modal-close" onclick="closeModal('aiPromptModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 16px; color: var(--text-secondary);">
+                    Copy this prompt and paste it into Claude or ChatGPT to generate a script for this stop:
+                </p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyPromptToClipboard()">📋 Copy</button>
+                    <pre id="aiPromptText" style="white-space: pre-wrap; word-break: break-word;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('aiPromptModal')">Close</button>
+                <button class="btn btn-primary" onclick="copyPromptToClipboard()">📋 Copy to Clipboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="fileInput" accept=".json" onchange="handleFileImport(event)" style="display: none;">
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+        let tourData = {
+            id: '',
+            name: 'My Walking Tour',
+            description: '',
+            language: 'en',
+            estimatedDuration: 60,
+            totalDistance: 0,
+            totalWalkingTime: 0,
+            createdDate: new Date().toISOString().split('T')[0],
+            author: 'Daniel',
+            difficulty: 'easy',
+            accessibility: {
+                wheelchairAccessible: false,
+                strollerFriendly: false,
+                hasStairs: false,
+                unevenTerrain: false
+            },
+            bestTimeToVisit: '',
+            tips: '',
+            startPoint: null,
+            stops: [],
+            route: {
+                type: 'walking',
+                waypoints: [],
+                detailedPath: [] // For accurate route from OSRM
+            }
+        };
+
+        let selectedStopIndex = -1;
+        let map = null;
+        let markers = [];
+        let routeLine = null;
+        let detailedRouteLine = null;
+
+        // Undo/Redo History
+        let history = [];
+        let historyIndex = -1;
+        const MAX_HISTORY = 50;
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            loadFromLocalStorage();
+            loadTheme();
+            updateUI();
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 'z') {
+                        e.preventDefault();
+                        if (e.shiftKey) redo();
+                        else undo();
+                    } else if (e.key === 'y') {
+                        e.preventDefault();
+                        redo();
+                    } else if (e.key === 's') {
+                        e.preventDefault();
+                        exportTour();
+                    }
+                }
+            });
+        });
+
+        function initMap() {
+            map = L.map('map').setView([52.4064, 16.9342], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            map.on('click', (e) => {
+                addStop(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        // ============================================
+        // UNDO / REDO
+        // ============================================
+        function saveState() {
+            const state = JSON.stringify(tourData);
+            
+            // Remove any redo states
+            history = history.slice(0, historyIndex + 1);
+            
+            // Add new state
+            history.push(state);
+            if (history.length > MAX_HISTORY) {
+                history.shift();
+            }
+            historyIndex = history.length - 1;
+            
+            updateUndoRedoButtons();
+            saveToLocalStorage();
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                tourData = JSON.parse(history[historyIndex]);
+                updateUI();
+                showToast('Undo', 'info');
+            }
+            updateUndoRedoButtons();
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                tourData = JSON.parse(history[historyIndex]);
+                updateUI();
+                showToast('Redo', 'info');
+            }
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('undoBtn').disabled = historyIndex <= 0;
+            document.getElementById('redoBtn').disabled = historyIndex >= history.length - 1;
+        }
+
+        // ============================================
+        // STOP MANAGEMENT
+        // ============================================
+        function addStop(lat, lng, name = '') {
+            const stopNumber = tourData.stops.length + 1;
+            
+            const newStop = {
+                id: stopNumber,
+                name: name || `Stop ${stopNumber}`,
+                nameTranslated: null,
+                latitude: parseFloat(lat.toFixed(6)),
+                longitude: parseFloat(lng.toFixed(6)),
+                triggerRadius: 25,
+                audioFile: `audio/${String(stopNumber).padStart(2, '0')}-stop.mp3`,
+                audioDuration: 0,
+                imageFile: `images/${String(stopNumber).padStart(2, '0')}-stop.jpg`,
+                script: '',
+                directionToNext: '',
+                distanceToNext: null,
+                walkingTimeToNext: null
+            };
+
+            tourData.stops.push(newStop);
+
+            if (tourData.stops.length === 1) {
+                tourData.startPoint = {
+                    latitude: newStop.latitude,
+                    longitude: newStop.longitude,
+                    instruction: 'Start your tour here'
+                };
+            }
+
+            calculateDistances();
+            updateUI();
+            selectStop(tourData.stops.length - 1);
+            saveState();
+            
+            map.setView([lat, lng], Math.max(map.getZoom(), 15));
+            showToast(`Stop ${stopNumber} added!`, 'success');
+            
+            // Auto-generate directions for the previous stop
+            if (tourData.stops.length > 1) {
+                generateDirectionsForStop(tourData.stops.length - 2);
+            }
+        }
+
+        function selectStop(index) {
+            if (index < 0 || index >= tourData.stops.length) {
+                selectedStopIndex = -1;
+                document.getElementById('emptyEditor').style.display = 'flex';
+                document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+                updateStopListUI();
+                return;
+            }
+
+            selectedStopIndex = index;
+            const stop = tourData.stops[index];
+
+            document.getElementById('emptyEditor').style.display = 'none';
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.querySelector('.tab-content.active')?.classList.remove('active');
+            document.getElementById('detailsTab').style.display = 'block';
+            document.getElementById('detailsTab').classList.add('active');
+            
+            document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === 0);
+            });
+
+            // Populate fields
+            document.getElementById('editName').value = stop.name || '';
+            document.getElementById('editNameTranslated').value = stop.nameTranslated || '';
+            document.getElementById('editLat').value = stop.latitude;
+            document.getElementById('editLng').value = stop.longitude;
+            document.getElementById('editRadius').value = stop.triggerRadius || 25;
+            document.getElementById('editScript').value = stop.script || '';
+            document.getElementById('editDirection').value = stop.directionToNext || '';
+            
+            // Calculate audio duration from script
+            const words = (stop.script || '').trim().split(/\s+/).filter(w => w).length;
+            const audioDuration = Math.round(words / 150 * 60);
+            document.getElementById('editAudioDuration').value = audioDuration ? `~${audioDuration}s` : 'No script';
+            
+            // Distance info
+            if (stop.distanceToNext) {
+                document.getElementById('editDistanceToNext').value = `${stop.distanceToNext}m`;
+                const walkMins = Math.round(stop.distanceToNext / 80); // ~80m/min walking
+                document.getElementById('editWalkingTime').value = `~${walkMins} min`;
+            } else {
+                document.getElementById('editDistanceToNext').value = index < tourData.stops.length - 1 ? 'Unknown' : 'Last stop';
+                document.getElementById('editWalkingTime').value = '-';
+            }
+
+            // Direction status
+            updateDirectionStatus(stop);
+            updateScriptStats();
+            updateStopListUI();
+            updateMarkers();
+
+            map.setView([stop.latitude, stop.longitude], Math.max(map.getZoom(), 16));
+        }
+
+        function updateDirectionStatus(stop) {
+            const statusEl = document.getElementById('directionStatus');
+            if (stop.directionToNext && stop.directionToNext.trim()) {
+                statusEl.className = 'direction-status generated';
+                statusEl.innerHTML = '✅ Directions generated';
+            } else if (selectedStopIndex < tourData.stops.length - 1) {
+                statusEl.className = 'direction-status missing';
+                statusEl.innerHTML = '⚠️ No directions yet - click Generate';
+            } else {
+                statusEl.className = 'direction-status';
+                statusEl.innerHTML = 'ℹ️ This is the last stop';
+            }
+        }
+
+        function saveCurrentStop() {
+            if (selectedStopIndex < 0 || selectedStopIndex >= tourData.stops.length) return;
+
+            const stop = tourData.stops[selectedStopIndex];
+            stop.name = document.getElementById('editName').value;
+            stop.nameTranslated = document.getElementById('editNameTranslated').value || null;
+            stop.triggerRadius = parseInt(document.getElementById('editRadius').value) || 25;
+            stop.script = document.getElementById('editScript').value;
+            stop.directionToNext = document.getElementById('editDirection').value;
+
+            // Update audio duration estimate
+            const words = stop.script.trim().split(/\s+/).filter(w => w).length;
+            stop.audioDuration = Math.round(words / 150 * 60);
+
+            updateStopListUI();
+            updateMarkers();
+            saveState();
+        }
+
+        function updateStopPosition() {
+            if (selectedStopIndex < 0) return;
+
+            const stop = tourData.stops[selectedStopIndex];
+            stop.latitude = parseFloat(document.getElementById('editLat').value);
+            stop.longitude = parseFloat(document.getElementById('editLng').value);
+
+            calculateDistances();
+            updateMarkers();
+            updateRoute();
+            saveState();
+
+            map.setView([stop.latitude, stop.longitude], map.getZoom());
+        }
+
+        function deleteCurrentStop() {
+            if (selectedStopIndex < 0) return;
+
+            const stopName = tourData.stops[selectedStopIndex].name;
+            if (!confirm(`Delete "${stopName}"?`)) return;
+
+            tourData.stops.splice(selectedStopIndex, 1);
+            
+            // Renumber stops
+            tourData.stops.forEach((stop, i) => {
+                stop.id = i + 1;
+                stop.audioFile = `audio/${String(i + 1).padStart(2, '0')}-stop.mp3`;
+                stop.imageFile = `images/${String(i + 1).padStart(2, '0')}-stop.jpg`;
+            });
+
+            calculateDistances();
+            selectedStopIndex = -1;
+            updateUI();
+            saveState();
+            showToast(`"${stopName}" deleted`, 'success');
+        }
+
+        function moveStop(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= tourData.stops.length) return;
+
+            const temp = tourData.stops[index];
+            tourData.stops[index] = tourData.stops[newIndex];
+            tourData.stops[newIndex] = temp;
+
+            // Renumber
+            tourData.stops.forEach((stop, i) => {
+                stop.id = i + 1;
+                stop.audioFile = `audio/${String(i + 1).padStart(2, '0')}-stop.mp3`;
+                stop.imageFile = `images/${String(i + 1).padStart(2, '0')}-stop.jpg`;
+            });
+
+            if (selectedStopIndex === index) {
+                selectedStopIndex = newIndex;
+            } else if (selectedStopIndex === newIndex) {
+                selectedStopIndex = index;
+            }
+
+            calculateDistances();
+            updateUI();
+            saveState();
+        }
+
+        function clearAllStops() {
+            if (tourData.stops.length === 0) return;
+            if (!confirm('Delete all stops? This cannot be undone.')) return;
+
+            tourData.stops = [];
+            tourData.route.waypoints = [];
+            tourData.route.detailedPath = [];
+            selectedStopIndex = -1;
+            
+            updateUI();
+            saveState();
+            showToast('All stops cleared', 'success');
+        }
+
+        // ============================================
+        // ROUTE OPTIMIZATION (Nearest Neighbor TSP)
+        // ============================================
+        function optimizeRoute() {
+            if (tourData.stops.length < 3) {
+                showToast('Need at least 3 stops to optimize', 'info');
+                return;
+            }
+
+            const n = tourData.stops.length;
+            const visited = new Array(n).fill(false);
+            const order = [0]; // Start from first stop
+            visited[0] = true;
+
+            // Nearest neighbor algorithm
+            for (let i = 0; i < n - 1; i++) {
+                const current = order[order.length - 1];
+                let nearest = -1;
+                let nearestDist = Infinity;
+
+                for (let j = 0; j < n; j++) {
+                    if (!visited[j]) {
+                        const dist = haversineDistance(
+                            tourData.stops[current].latitude,
+                            tourData.stops[current].longitude,
+                            tourData.stops[j].latitude,
+                            tourData.stops[j].longitude
+                        );
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearest = j;
+                        }
+                    }
+                }
+
+                if (nearest !== -1) {
+                    visited[nearest] = true;
+                    order.push(nearest);
+                }
+            }
+
+            // Reorder stops
+            const oldStops = [...tourData.stops];
+            tourData.stops = order.map(i => oldStops[i]);
+
+            // Renumber
+            tourData.stops.forEach((stop, i) => {
+                stop.id = i + 1;
+                stop.audioFile = `audio/${String(i + 1).padStart(2, '0')}-stop.mp3`;
+                stop.imageFile = `images/${String(i + 1).padStart(2, '0')}-stop.jpg`;
+                stop.directionToNext = ''; // Clear old directions
+            });
+
+            calculateDistances();
+            selectedStopIndex = -1;
+            updateUI();
+            saveState();
+            showToast('Route optimized!', 'success');
+
+            // Regenerate all directions
+            generateAllDirections();
+        }
+
+        // ============================================
+        // WALKING DIRECTIONS (OSRM - Free)
+        // ============================================
+        async function generateDirectionsForStop(index) {
+            if (index < 0 || index >= tourData.stops.length - 1) return null;
+
+            const from = tourData.stops[index];
+            const to = tourData.stops[index + 1];
+
+            try {
+                const url = `https://router.project-osrm.org/route/v1/foot/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson&steps=true`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.code === 'Ok' && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const leg = route.legs[0];
+
+                    // Extract distance and duration
+                    const distanceMeters = Math.round(leg.distance);
+                    const durationMins = Math.round(leg.duration / 60);
+
+                    // Generate human-readable directions
+                    const directions = generateHumanDirections(leg.steps, to.name);
+
+                    // Update stop
+                    tourData.stops[index].distanceToNext = distanceMeters;
+                    tourData.stops[index].walkingTimeToNext = durationMins;
+                    tourData.stops[index].directionToNext = directions;
+
+                    return {
+                        distance: distanceMeters,
+                        duration: durationMins,
+                        directions: directions,
+                        geometry: route.geometry.coordinates
+                    };
+                }
+            } catch (error) {
+                console.error('OSRM routing error:', error);
+            }
+
+            return null;
+        }
+
+        function generateHumanDirections(steps, destinationName) {
+            if (!steps || steps.length === 0) return '';
+
+            const directions = [];
+            
+            for (let i = 0; i < Math.min(steps.length, 5); i++) {
+                const step = steps[i];
+                const maneuver = step.maneuver;
+                const distance = Math.round(step.distance);
+                
+                if (distance < 10) continue; // Skip very short segments
+
+                let instruction = '';
+                const streetName = step.name || 'the path';
+
+                switch (maneuver.type) {
+                    case 'depart':
+                        instruction = `Head ${maneuver.modifier || 'forward'} on ${streetName}`;
+                        break;
+                    case 'turn':
+                        instruction = `Turn ${maneuver.modifier} onto ${streetName}`;
+                        break;
+                    case 'continue':
+                        instruction = `Continue on ${streetName}`;
+                        break;
+                    case 'arrive':
+                        instruction = `Arrive at ${destinationName}`;
+                        break;
+                    default:
+                        if (maneuver.modifier) {
+                            instruction = `Go ${maneuver.modifier} on ${streetName}`;
+                        }
+                }
+
+                if (instruction && distance > 10) {
+                    directions.push(`${instruction} (${distance}m)`);
+                }
+            }
+
+            return directions.slice(0, 3).join('. ') + '.';
+        }
+
+        async function generateAllDirections() {
+            if (tourData.stops.length < 2) {
+                showToast('Need at least 2 stops', 'info');
+                return;
+            }
+
+            const overlay = document.getElementById('generatingOverlay');
+            overlay.classList.add('show');
+
+            let generated = 0;
+            let allCoordinates = [];
+
+            for (let i = 0; i < tourData.stops.length - 1; i++) {
+                document.getElementById('generatingText').textContent = 
+                    `Generating directions ${i + 1} of ${tourData.stops.length - 1}...`;
+
+                const result = await generateDirectionsForStop(i);
+                if (result) {
+                    generated++;
+                    if (result.geometry) {
+                        allCoordinates = allCoordinates.concat(result.geometry);
+                    }
+                }
+
+                // Small delay to avoid rate limiting
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            // Store detailed path for route visualization
+            if (allCoordinates.length > 0) {
+                tourData.route.detailedPath = allCoordinates;
+            }
+
+            overlay.classList.remove('show');
+            calculateTotalStats();
+            updateUI();
+            updateDetailedRoute();
+            saveState();
+            
+            showToast(`Generated ${generated} directions!`, 'success');
+        }
+
+        async function generateDirectionsForCurrent() {
+            if (selectedStopIndex < 0 || selectedStopIndex >= tourData.stops.length - 1) {
+                showToast('This is the last stop', 'info');
+                return;
+            }
+
+            const overlay = document.getElementById('generatingOverlay');
+            document.getElementById('generatingText').textContent = 'Generating directions...';
+            overlay.classList.add('show');
+
+            const result = await generateDirectionsForStop(selectedStopIndex);
+            
+            overlay.classList.remove('show');
+
+            if (result) {
+                // Update form fields
+                document.getElementById('editDirection').value = result.directions;
+                document.getElementById('editDistanceToNext').value = `${result.distance}m`;
+                document.getElementById('editWalkingTime').value = `~${result.duration} min`;
+                
+                updateDirectionStatus(tourData.stops[selectedStopIndex]);
+                calculateTotalStats();
+                updateUI();
+                saveState();
+                showToast('Directions generated!', 'success');
+            } else {
+                showToast('Could not generate directions', 'error');
+            }
+        }
+
+        // ============================================
+        // DISTANCE & STATS CALCULATIONS
+        // ============================================
+        function calculateDistances() {
+            for (let i = 0; i < tourData.stops.length - 1; i++) {
+                const current = tourData.stops[i];
+                const next = tourData.stops[i + 1];
+                
+                // Use existing distance if available, otherwise calculate straight line
+                if (!current.distanceToNext) {
+                    current.distanceToNext = Math.round(haversineDistance(
+                        current.latitude, current.longitude,
+                        next.latitude, next.longitude
+                    ));
+                }
+            }
+
+            if (tourData.stops.length > 0) {
+                tourData.stops[tourData.stops.length - 1].distanceToNext = null;
+            }
+
+            tourData.route.waypoints = tourData.stops.map(stop => 
+                [stop.latitude, stop.longitude]
+            );
+
+            calculateTotalStats();
+        }
+
+        function calculateTotalStats() {
+            // Total distance
+            const totalDistanceM = tourData.stops.reduce((sum, stop) => 
+                sum + (stop.distanceToNext || 0), 0);
+            tourData.totalDistance = totalDistanceM / 1000;
+
+            // Total walking time (using actual times or estimate at 80m/min)
+            const totalWalkingMins = tourData.stops.reduce((sum, stop) => {
+                if (stop.walkingTimeToNext) return sum + stop.walkingTimeToNext;
+                if (stop.distanceToNext) return sum + Math.round(stop.distanceToNext / 80);
+                return sum;
+            }, 0);
+            tourData.totalWalkingTime = totalWalkingMins;
+
+            // Total audio time
+            const totalAudioSecs = tourData.stops.reduce((sum, stop) => {
+                const words = (stop.script || '').trim().split(/\s+/).filter(w => w).length;
+                return sum + Math.round(words / 150 * 60);
+            }, 0);
+
+            // Estimated calories (walking burns ~4 cal per minute)
+            const calories = Math.round(totalWalkingMins * 4);
+
+            // Update UI
+            document.getElementById('totalDistance').textContent = 
+                totalDistanceM >= 1000 ? `${(totalDistanceM/1000).toFixed(1)} km` : `${totalDistanceM} m`;
+            document.getElementById('totalTime').textContent = `${totalWalkingMins} min`;
+            document.getElementById('stopCount').textContent = tourData.stops.length;
+            document.getElementById('totalCalories').textContent = `${calories} kcal`;
+            document.getElementById('totalAudioTime').textContent = `${Math.round(totalAudioSecs/60)} min`;
+            document.getElementById('stopCountBadge').textContent = 
+                `${tourData.stops.length} stop${tourData.stops.length !== 1 ? 's' : ''}`;
+
+            // Estimated total duration (walking + audio + buffer)
+            tourData.estimatedDuration = totalWalkingMins + Math.round(totalAudioSecs/60) + tourData.stops.length * 2;
+        }
+
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c;
+        }
+
+        // ============================================
+        // UI UPDATES
+        // ============================================
+        function updateUI() {
+            updateStopListUI();
+            updateMarkers();
+            updateRoute();
+            calculateTotalStats();
+        }
+
+        function updateStopListUI() {
+            const container = document.getElementById('stopList');
+
+            if (tourData.stops.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <p><strong>Click on the map</strong><br>to add your first stop</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = tourData.stops.map((stop, index) => {
+                const words = (stop.script || '').trim().split(/\s+/).filter(w => w).length;
+                const hasScript = words > 0;
+                const hasDirections = stop.directionToNext && stop.directionToNext.trim();
+                const isLastStop = index === tourData.stops.length - 1;
+
+                return `
+                    <div class="stop-card ${index === selectedStopIndex ? 'active' : ''}" 
+                         onclick="selectStop(${index})">
+                        <div class="stop-card-header">
+                            <span class="stop-number">${stop.id}</span>
+                            <span class="stop-name">${stop.name}</span>
+                        </div>
+                        <div class="stop-meta">
+                            <span>${hasScript ? '✅' : '⚠️'} ${words} words</span>
+                            ${!isLastStop ? `<span>${stop.distanceToNext || '?'}m</span>` : ''}
+                        </div>
+                        ${!isLastStop ? `
+                            <div class="stop-directions-preview ${hasDirections ? '' : 'missing'}">
+                                ${hasDirections ? 
+                                    `🧭 ${stop.directionToNext.substring(0, 60)}...` : 
+                                    '⚠️ No walking directions'}
+                            </div>
+                        ` : ''}
+                        <div class="stop-card-actions">
+                            <button onclick="event.stopPropagation(); moveStop(${index}, -1)" 
+                                    ${index === 0 ? 'disabled' : ''}>↑</button>
+                            <button onclick="event.stopPropagation(); moveStop(${index}, 1)"
+                                    ${isLastStop ? 'disabled' : ''}>↓</button>
+                            <button onclick="event.stopPropagation(); focusOnStop(${index})">🎯</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function focusOnStop(index) {
+            const stop = tourData.stops[index];
+            map.setView([stop.latitude, stop.longitude], 17);
+            selectStop(index);
+        }
+
+        function updateMarkers() {
+            // Clear existing markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            tourData.stops.forEach((stop, index) => {
+                const isSelected = index === selectedStopIndex;
+                
+                const icon = L.divIcon({
+                    className: 'custom-marker-container',
+                    html: `<div class="custom-marker ${isSelected ? 'selected' : ''}" 
+                                style="width: ${isSelected ? 32 : 28}px; height: ${isSelected ? 32 : 28}px;">
+                            ${stop.id}
+                           </div>`,
+                    iconSize: [isSelected ? 32 : 28, isSelected ? 32 : 28],
+                    iconAnchor: [isSelected ? 16 : 14, isSelected ? 16 : 14],
+                });
+
+                const marker = L.marker([stop.latitude, stop.longitude], { 
+                    icon,
+                    draggable: true 
+                }).addTo(map);
+
+                marker.on('click', () => selectStop(index));
+                marker.on('dragend', (e) => {
+                    const pos = e.target.getLatLng();
+                    tourData.stops[index].latitude = parseFloat(pos.lat.toFixed(6));
+                    tourData.stops[index].longitude = parseFloat(pos.lng.toFixed(6));
+                    tourData.stops[index].directionToNext = ''; // Clear old directions
+                    
+                    if (index > 0) {
+                        tourData.stops[index - 1].directionToNext = '';
+                    }
+                    
+                    calculateDistances();
+                    updateUI();
+                    
+                    if (index === selectedStopIndex) {
+                        document.getElementById('editLat').value = pos.lat.toFixed(6);
+                        document.getElementById('editLng').value = pos.lng.toFixed(6);
+                    }
+                    
+                    saveState();
+                });
+
+                markers.push(marker);
+            });
+        }
+
+        function updateRoute() {
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+
+            if (tourData.stops.length < 2) return;
+
+            const coords = tourData.stops.map(s => [s.latitude, s.longitude]);
+            
+            routeLine = L.polyline(coords, {
+                color: '#ef4444',
+                weight: 4,
+                opacity: 0.7,
+                dashArray: '10, 10'
+            }).addTo(map);
+        }
+
+        function updateDetailedRoute() {
+            if (detailedRouteLine) {
+                map.removeLayer(detailedRouteLine);
+            }
+
+            if (tourData.route.detailedPath && tourData.route.detailedPath.length > 0) {
+                // OSRM returns [lng, lat], Leaflet expects [lat, lng]
+                const coords = tourData.route.detailedPath.map(c => [c[1], c[0]]);
+                
+                detailedRouteLine = L.polyline(coords, {
+                    color: '#0891b2',
+                    weight: 5,
+                    opacity: 0.8
+                }).addTo(map);
+
+                // Hide the simple dashed line
+                if (routeLine) {
+                    map.removeLayer(routeLine);
+                }
+            }
+        }
+
+        function fitAllStops() {
+            if (tourData.stops.length === 0) return;
+
+            const bounds = L.latLngBounds(
+                tourData.stops.map(s => [s.latitude, s.longitude])
+            );
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
+        // ============================================
+        // TABS
+        // ============================================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+                const tabs = ['details', 'script', 'directions'];
+                btn.classList.toggle('active', tabs[i] === tabName);
+            });
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+                content.classList.remove('active');
+            });
+
+            const tab = document.getElementById(`${tabName}Tab`);
+            if (tab) {
+                tab.style.display = 'block';
+                tab.classList.add('active');
+            }
+        }
+
+        // ============================================
+        // SCRIPT HELPERS
+        // ============================================
+        function updateScriptStats() {
+            const script = document.getElementById('editScript').value;
+            const words = script.trim().split(/\s+/).filter(w => w).length;
+            const chars = script.length;
+            const seconds = Math.round(words / 150 * 60);
+
+            document.getElementById('wordCount').textContent = words;
+            document.getElementById('charCount').textContent = chars;
+            document.getElementById('speakingTime').textContent = `${seconds}s`;
+        }
+
+        function generateAIPrompt() {
+            if (selectedStopIndex < 0) return;
+
+            const stop = tourData.stops[selectedStopIndex];
+            const prevStop = selectedStopIndex > 0 ? tourData.stops[selectedStopIndex - 1] : null;
+            const nextStop = selectedStopIndex < tourData.stops.length - 1 ? tourData.stops[selectedStopIndex + 1] : null;
+
+            const prompt = `I'm creating an audio walking tour. Please write a 60-90 second narration script (100-150 words) for this stop:
+
+**Stop Name:** ${stop.name}
+**Location:** ${stop.latitude}, ${stop.longitude}
+**Stop Number:** ${stop.id} of ${tourData.stops.length}
+${prevStop ? `**Previous Stop:** ${prevStop.name}` : '**This is the first stop**'}
+${nextStop ? `**Next Stop:** ${nextStop.name}` : '**This is the final stop**'}
+
+**Tour Context:**
+- Tour Name: ${tourData.name}
+- Description: ${tourData.description || 'A walking tour'}
+- Language: ${tourData.language}
+
+**Script Requirements:**
+1. Open with an engaging hook or interesting fact
+2. Provide historical or cultural context
+3. Describe what the visitor is seeing
+4. Include a sensory detail (sound, smell, atmosphere)
+${nextStop ? '5. End with a natural transition to the next stop' : '5. End with a memorable conclusion to the tour'}
+
+**Tone:** Conversational and engaging, like a knowledgeable friend showing someone around. Avoid dry, encyclopedic language.
+
+Please write ONLY the script text, no headers or formatting.`;
+
+            document.getElementById('aiPromptText').textContent = prompt;
+            document.getElementById('aiPromptModal').classList.remove('hidden');
+        }
+
+        function copyPromptToClipboard() {
+            const text = document.getElementById('aiPromptText').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Prompt copied to clipboard!', 'success');
+            });
+        }
+
+        function previewScript() {
+            if (!window.speechSynthesis) {
+                showToast('Text-to-speech not supported', 'error');
+                return;
+            }
+
+            const script = document.getElementById('editScript').value;
+            if (!script.trim()) {
+                showToast('No script to preview', 'info');
+                return;
+            }
+
+            // Stop any existing speech
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(script);
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            
+            // Try to use a British English voice
+            const voices = window.speechSynthesis.getVoices();
+            const britishVoice = voices.find(v => v.lang === 'en-GB');
+            if (britishVoice) utterance.voice = britishVoice;
+
+            window.speechSynthesis.speak(utterance);
+            showToast('Playing preview...', 'info');
+        }
+
+        // ============================================
+        // SEARCH
+        // ============================================
+        async function searchLocation() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+                );
+                const results = await response.json();
+
+                if (results.length > 0) {
+                    const { lat, lon, display_name } = results[0];
+                    map.setView([parseFloat(lat), parseFloat(lon)], 15);
+                    showToast(`Found: ${display_name.split(',')[0]}`, 'success');
+                } else {
+                    showToast('Location not found', 'error');
+                }
+            } catch (error) {
+                showToast('Search failed', 'error');
+            }
+        }
+
+        // ============================================
+        // SETTINGS
+        // ============================================
+        function openTourSettings() {
+            document.getElementById('tourId').value = tourData.id || '';
+            document.getElementById('tourName').value = tourData.name || '';
+            document.getElementById('tourDescription').value = tourData.description || '';
+            document.getElementById('tourLanguage').value = tourData.language || 'en';
+            document.getElementById('tourAuthor').value = tourData.author || 'Daniel';
+            document.getElementById('tourBestTime').value = tourData.bestTimeToVisit || '';
+            document.getElementById('tourTips').value = tourData.tips || '';
+            
+            // Difficulty
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.value === tourData.difficulty);
+            });
+
+            // Accessibility
+            document.getElementById('accessWheelchair').checked = tourData.accessibility?.wheelchairAccessible || false;
+            document.getElementById('accessStroller').checked = tourData.accessibility?.strollerFriendly || false;
+            document.getElementById('accessStairs').checked = tourData.accessibility?.hasStairs || false;
+            document.getElementById('accessUneven').checked = tourData.accessibility?.unevenTerrain || false;
+            
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function selectDifficulty(value) {
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.value === value);
+            });
+            tourData.difficulty = value;
+        }
+
+        function saveTourSettings() {
+            tourData.id = document.getElementById('tourId').value || 
+                          document.getElementById('tourName').value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            tourData.name = document.getElementById('tourName').value;
+            tourData.description = document.getElementById('tourDescription').value;
+            tourData.language = document.getElementById('tourLanguage').value;
+            tourData.author = document.getElementById('tourAuthor').value;
+            tourData.bestTimeToVisit = document.getElementById('tourBestTime').value;
+            tourData.tips = document.getElementById('tourTips').value;
+
+            tourData.accessibility = {
+                wheelchairAccessible: document.getElementById('accessWheelchair').checked,
+                strollerFriendly: document.getElementById('accessStroller').checked,
+                hasStairs: document.getElementById('accessStairs').checked,
+                unevenTerrain: document.getElementById('accessUneven').checked
+            };
+
+            closeModal('settingsModal');
+            saveState();
+            showToast('Settings saved!', 'success');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // ============================================
+        // EXPORT
+        // ============================================
+        function toggleExportMenu() {
+            const menu = document.getElementById('exportMenu');
+            menu.classList.toggle('show');
+            
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu(e) {
+                    if (!e.target.closest('.dropdown')) {
+                        menu.classList.remove('show');
+                        document.removeEventListener('click', closeMenu);
+                    }
+                });
+            }, 10);
+        }
+
+        function exportTour() {
+            if (tourData.stops.length === 0) {
+                showToast('Add some stops first!', 'error');
+                return;
+            }
+
+            if (!tourData.id) {
+                tourData.id = tourData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            }
+
+            if (tourData.stops.length > 0) {
+                tourData.startPoint = {
+                    latitude: tourData.stops[0].latitude,
+                    longitude: tourData.stops[0].longitude,
+                    instruction: tourData.stops[0].directionToNext || 'Start your tour here'
+                };
+            }
+
+            tourData.createdDate = new Date().toISOString().split('T')[0];
+
+            const json = JSON.stringify(tourData, null, 2);
+            downloadFile(json, `tour.json`, 'application/json');
+            showToast(`Tour exported! Run: python generate_audio.py ./${tourData.id}`, 'success');
+        }
+
+        function exportGPX() {
+            if (tourData.stops.length === 0) {
+                showToast('Add some stops first!', 'error');
+                return;
+            }
+
+            const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Audio Tour Creator Pro">
+  <metadata>
+    <name>${escapeXml(tourData.name)}</name>
+    <desc>${escapeXml(tourData.description)}</desc>
+  </metadata>
+  <trk>
+    <name>${escapeXml(tourData.name)}</name>
+    <trkseg>
+${tourData.stops.map(s => `      <trkpt lat="${s.latitude}" lon="${s.longitude}">
+        <name>${escapeXml(s.name)}</name>
+      </trkpt>`).join('\n')}
+    </trkseg>
+  </trk>
+${tourData.stops.map(s => `  <wpt lat="${s.latitude}" lon="${s.longitude}">
+    <name>${escapeXml(s.name)}</name>
+    <desc>${escapeXml(s.script?.substring(0, 200) || '')}</desc>
+  </wpt>`).join('\n')}
+</gpx>`;
+
+            downloadFile(gpx, `${tourData.id || 'tour'}.gpx`, 'application/gpx+xml');
+            showToast('GPX exported!', 'success');
+        }
+
+        function exportCSV() {
+            if (tourData.stops.length === 0) {
+                showToast('Add some stops first!', 'error');
+                return;
+            }
+
+            const headers = ['Stop', 'Name', 'Lat', 'Lng', 'Distance (m)', 'Walk Time (min)', 'Words', 'Has Directions'];
+            const rows = tourData.stops.map(s => {
+                const words = (s.script || '').trim().split(/\s+/).filter(w => w).length;
+                return [
+                    s.id,
+                    `"${s.name.replace(/"/g, '""')}"`,
+                    s.latitude,
+                    s.longitude,
+                    s.distanceToNext || '',
+                    s.walkingTimeToNext || '',
+                    words,
+                    s.directionToNext ? 'Yes' : 'No'
+                ];
+            });
+
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            downloadFile(csv, `${tourData.id || 'tour'}.csv`, 'text/csv');
+            showToast('CSV exported!', 'success');
+        }
+
+        function exportPythonCommands() {
+            const tourId = tourData.id || 'my-tour';
+            const commands = `# Audio Tour Generation Commands
+# ================================
+
+# 1. Install Edge TTS (one time):
+pip install edge-tts
+
+# 2. Generate audio files:
+python generate_audio.py ./${tourId}
+
+# 3. Alternative voices:
+python generate_audio.py ./${tourId} --voice en-GB-SoniaNeural  # British female
+python generate_audio.py ./${tourId} --voice en-US-GuyNeural    # American male
+
+# 4. List all voices:
+python generate_audio.py --list-voices
+
+# 5. Regenerate (overwrite):
+python generate_audio.py ./${tourId} --overwrite
+`;
+
+            downloadFile(commands, `${tourId}-commands.txt`, 'text/plain');
+            showToast('Commands exported!', 'success');
+        }
+
+        function exportAIPrompts() {
+            if (tourData.stops.length === 0) {
+                showToast('Add some stops first!', 'error');
+                return;
+            }
+
+            let prompts = `# AI Script Generation Prompts for "${tourData.name}"\n`;
+            prompts += `# Generated: ${new Date().toISOString()}\n`;
+            prompts += `# Copy each prompt into Claude or ChatGPT\n\n`;
+            prompts += `${'='.repeat(60)}\n\n`;
+
+            tourData.stops.forEach((stop, i) => {
+                const prevStop = i > 0 ? tourData.stops[i - 1] : null;
+                const nextStop = i < tourData.stops.length - 1 ? tourData.stops[i + 1] : null;
+
+                prompts += `## Stop ${stop.id}: ${stop.name}\n\n`;
+                prompts += `Write a 60-90 second audio guide script for "${stop.name}".\n`;
+                prompts += `Location: ${stop.latitude}, ${stop.longitude}\n`;
+                prompts += prevStop ? `Previous stop: ${prevStop.name}\n` : 'This is the first stop.\n';
+                prompts += nextStop ? `Next stop: ${nextStop.name}\n` : 'This is the final stop.\n';
+                prompts += `\nTone: Conversational, engaging, like a knowledgeable friend.\n`;
+                prompts += `Include: Hook, historical context, what to see, sensory detail.\n`;
+                prompts += `\n${'='.repeat(60)}\n\n`;
+            });
+
+            downloadFile(prompts, `${tourData.id || 'tour'}-ai-prompts.txt`, 'text/plain');
+            showToast('AI prompts exported!', 'success');
+        }
+
+        function downloadFile(content, filename, type) {
+            const blob = new Blob([content], { type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeXml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&apos;');
+        }
+
+        // ============================================
+        // THEME
+        // ============================================
+        function toggleTheme() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        }
+
+        function loadTheme() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+            document.getElementById('themeBtn').textContent = saved === 'dark' ? '☀️' : '🌙';
+        }
+
+        // ============================================
+        // LOCAL STORAGE
+        // ============================================
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('tourCreatorData', JSON.stringify(tourData));
+            } catch (e) {
+                console.warn('Could not save to localStorage:', e);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('tourCreatorData');
+                if (saved) {
+                    tourData = JSON.parse(saved);
+                    // Initialize history with loaded state
+                    history = [JSON.stringify(tourData)];
+                    historyIndex = 0;
+                }
+            } catch (e) {
+                console.warn('Could not load from localStorage:', e);
+            }
+        }
+
+        // ============================================
+        // TOAST NOTIFICATIONS
+        // ============================================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ============================================
+        // FILE IMPORT
+        // ============================================
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    tourData = { ...tourData, ...imported };
+                    updateUI();
+                    saveState();
+                    
+                    if (tourData.stops.length > 0) {
+                        fitAllStops();
+                    }
+                    
+                    showToast('Tour imported successfully!', 'success');
+                } catch (error) {
+                    showToast('Invalid JSON file', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // Initialize voices for TTS preview
+        if (window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = () => {
+                window.speechSynthesis.getVoices();
+            };
+        }
+    </script>
+</body>
+</html>

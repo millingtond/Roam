@@ -1,0 +1,94 @@
+{
+  "id": "sample-tour",
+  "name": "Sample Walking Tour",
+  "description": "A demonstration tour showing the data structure. Replace with your own content.",
+  "language": "en",
+  "estimatedDuration": 45,
+  "totalDistance": 1.2,
+  "createdDate": "2025-01-01",
+  "author": "Daniel",
+  "coverImage": "images/cover.jpg",
+  
+  "startPoint": {
+    "latitude": 52.4064,
+    "longitude": 16.9342,
+    "instruction": "Begin at the main square, near the central fountain."
+  },
+  
+  "stops": [
+    {
+      "id": 1,
+      "name": "Start Tour: Central Fountain",
+      "nameTranslated": null,
+      "latitude": 52.4064,
+      "longitude": 16.9342,
+      "triggerRadius": 25,
+      "audioFile": "audio/01-fountain.mp3",
+      "audioDuration": 90,
+      "imageFile": "images/01-fountain.jpg",
+      "script": "Welcome to our walking tour! You're standing at the central fountain, the heart of the old town. This fountain was built in 1892 and has been a meeting point for locals ever since. Look around you - the beautiful architecture dates back to the 19th century. Take a moment to absorb the atmosphere before we begin our journey through history.\n\nWhen you're ready, we'll head towards the library. Walk north along the western edge of the square.",
+      "directionToNext": "Walk north along the western edge of the square towards the grand building with columns.",
+      "distanceToNext": 150
+    },
+    {
+      "id": 2,
+      "name": "Historic Library",
+      "nameTranslated": null,
+      "latitude": 52.4078,
+      "longitude": 16.9335,
+      "triggerRadius": 20,
+      "audioFile": "audio/02-library.mp3",
+      "audioDuration": 85,
+      "imageFile": "images/02-library.jpg",
+      "script": "The building before you is the Historic Library, founded in 1829. Its neoclassical facade features six Corinthian columns that have witnessed nearly two centuries of history. The library houses over 500,000 volumes, including rare manuscripts from the medieval period.\n\nNotice the inscription above the entrance - it translates to 'For the Use of the Public', reflecting the founders' democratic ideals. The reading room inside features a stunning painted ceiling, though unfortunately it's not open to tourists.\n\nOur next stop is the National Museum. Continue straight ahead past the library.",
+      "directionToNext": "Continue straight ahead past the library, then turn right at the corner.",
+      "distanceToNext": 200
+    },
+    {
+      "id": 3,
+      "name": "National Museum",
+      "nameTranslated": null,
+      "latitude": 52.4095,
+      "longitude": 16.9340,
+      "triggerRadius": 25,
+      "audioFile": "audio/03-museum.mp3",
+      "audioDuration": 120,
+      "imageFile": "images/03-museum.jpg",
+      "script": "Welcome to the National Museum, one of the finest art collections in the region. The building itself is a work of art - constructed between 1900 and 1904 in the neo-Renaissance style.\n\nThe museum's collection spans from ancient artifacts to contemporary art. The highlight is the gallery of Polish paintings on the second floor, featuring works from the Romantic period.\n\nIf you have time after the tour, I highly recommend visiting the temporary exhibition hall. Check the board outside for current displays.\n\nTake a moment to appreciate the sculptural details on the facade before we continue to the old town square.",
+      "directionToNext": "Cross the street and walk towards the archway leading to the old town square.",
+      "distanceToNext": 180
+    },
+    {
+      "id": 4,
+      "name": "Old Town Square",
+      "nameTranslated": null,
+      "latitude": 52.4088,
+      "longitude": 16.9365,
+      "triggerRadius": 30,
+      "audioFile": "audio/04-square.mp3",
+      "audioDuration": 95,
+      "imageFile": "images/04-square.jpg",
+      "script": "You've arrived at the Old Town Square, the medieval heart of the city. This square has been the center of civic life for over 700 years.\n\nThe colorful townhouses surrounding you were built by wealthy merchants in the 16th and 17th centuries. Each one tells a story through its unique facade - look for the decorative elements that indicate the original owner's profession.\n\nIn the center of the square, you'll see the Town Hall. At noon, mechanical figures emerge from the clock tower - a tradition dating back to 1551.\n\nThis concludes our tour. Feel free to explore the cafes and shops around the square. Thank you for joining me!",
+      "directionToNext": null,
+      "distanceToNext": null
+    }
+  ],
+  
+  "route": {
+    "type": "walking",
+    "waypoints": [
+      [52.4064, 16.9342],
+      [52.4068, 16.9340],
+      [52.4072, 16.9338],
+      [52.4078, 16.9335],
+      [52.4082, 16.9336],
+      [52.4086, 16.9337],
+      [52.4090, 16.9338],
+      [52.4095, 16.9340],
+      [52.4094, 16.9348],
+      [52.4092, 16.9355],
+      [52.4090, 16.9360],
+      [52.4088, 16.9365]
+    ]
+  }
+}

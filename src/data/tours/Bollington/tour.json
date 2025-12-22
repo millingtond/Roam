@@ -1,0 +1,58 @@
+{
+  "id": "Bollington",
+  "name": "Bollington Walking Tour",
+  "description": "",
+  "language": "en",
+  "estimatedDuration": 60,
+  "totalDistance": 0.207,
+  "createdDate": "2025-12-21",
+  "author": "Daniel",
+  "startPoint": {
+    "latitude": 52.776186,
+    "longitude": -2.241211,
+    "instruction": "turn left"
+  },
+  "stops": [
+    {
+      "id": 1,
+      "name": "Stop 1hhhh",
+      "nameTranslated": null,
+      "latitude": 52.776186,
+      "longitude": -2.241211,
+      "triggerRadius": 25,
+      "audioFile": "audio/01-stop.mp3",
+      "audioDuration": 2,
+      "imageFile": "images/01-stop.jpg",
+      "script": "this is a test",
+      "directionToNext": "turn left",
+      "distanceToNext": 207
+    },
+    {
+      "id": 2,
+      "name": "Stop 2",
+      "nameTranslated": null,
+      "latitude": 52.774471,
+      "longitude": -2.240009,
+      "triggerRadius": 25,
+      "audioFile": "audio/02-stop.mp3",
+      "audioDuration": 0,
+      "imageFile": "images/02-stop.jpg",
+      "script": "fghfgh",
+      "directionToNext": "fghfgh",
+      "distanceToNext": null
+    }
+  ],
+  "route": {
+    "type": "walking",
+    "waypoints": [
+      [
+        52.776186,
+        -2.241211
+      ],
+      [
+        52.774471,
+        -2.240009
+      ]
+    ]
+  }
+}
