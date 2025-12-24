@@ -9,6 +9,7 @@ import {
   Alert,
   ActionSheetIOS,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,13 +22,26 @@ import { ResumeTourBanner } from '../components/ResumeTourBanner';
 import { TourRatingModal } from '../components/TourRatingModal';
 import { TourNotesModal } from '../components/TourNotesModal';
 import { ShareTourModal } from '../components/ShareTourModal';
-import { OfflineManager } from '../components/OfflineManager';
 import {
   useFavorites,
   useTourRatings,
   useTourNotes,
   useTourProgressData,
 } from '../hooks/useTourUserData';
+import {
+  initializeFirebase,
+  isFirebaseConnected,
+  fetchAvailableTours,
+  downloadTourForOffline,
+  isTourDownloaded,
+  checkForTourUpdate,
+  deleteTourDownload,
+  cloudTourToLocal,
+  getLocalTourPath,
+  CloudTour,
+  DownloadProgress,
+} from '../services/firebaseService';
+import { loadTour } from '../services/tourLoader';
 
 // Storage key for dismissed resume banner
 const DISMISSED_RESUME_KEY = 'dismissed_resume_tour';
@@ -36,16 +50,26 @@ interface HomeScreenProps {
   navigation: any;
 }
 
-type FilterType = 'all' | 'favorites' | 'in-progress' | 'completed';
+type FilterType = 'all' | 'favorites' | 'downloaded' | 'completed';
+
+interface TourWithStatus extends Tour {
+  isDownloaded: boolean;
+  hasUpdate: boolean;
+  isCloud: boolean;
+}
 
 export function HomeScreen({ navigation }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   
   // Tours data
-  const [tours, setTours] = useState<Tour[]>([]);
+  const [tours, setTours] = useState<TourWithStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [offlineStatus, setOfflineStatus] = useState<Record<string, boolean>>({});
+  const [firebaseConnected, setFirebaseConnected] = useState(false);
+  
+  // Download state
+  const [downloadingTourId, setDownloadingTourId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   
   // Filter state
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -55,7 +79,6 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showOfflineModal, setShowOfflineModal] = useState(false);
   
   // Resume banner state
   const [showResumeBanner, setShowResumeBanner] = useState(true);
@@ -66,59 +89,98 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const { notes, getNotesForTour, addNote, updateNote, deleteNote } = useTourNotes();
   const { lastPlayed, getProgressPercentage, clearProgress } = useTourProgressData();
 
-  // Load tours
+  // Initialize Firebase and load tours
   useEffect(() => {
-    loadTours();
-    checkDismissedResume();
+    initApp();
   }, []);
 
+  const initApp = async () => {
+    // Initialize Firebase
+    const connected = initializeFirebase();
+    setFirebaseConnected(connected);
+    
+    // Load tours
+    await loadTours();
+    checkDismissedResume();
+  };
+
   const loadTours = async () => {
+    setIsLoading(true);
+    
     try {
-      // Load tours from the assets or documents directory
-      const toursDir = FileSystem.documentDirectory + 'tours/';
-      const dirInfo = await FileSystem.getInfoAsync(toursDir);
+      const loadedTours: TourWithStatus[] = [];
       
-      if (dirInfo.exists) {
-        const files = await FileSystem.readDirectoryAsync(toursDir);
-        const tourFiles = files.filter(f => f.endsWith('.json'));
-        
-        const loadedTours: Tour[] = [];
-        for (const file of tourFiles) {
-          try {
-            const content = await FileSystem.readAsStringAsync(toursDir + file);
-            const tour = JSON.parse(content);
-            loadedTours.push(tour);
-          } catch (e) {
-            console.warn(`Failed to load tour ${file}:`, e);
+      // 1. Try to fetch from Firebase
+      if (isFirebaseConnected()) {
+        try {
+          const cloudTours = await fetchAvailableTours();
+          
+          // Check download status for each cloud tour
+          for (const cloudTour of cloudTours) {
+            const isDownloaded = await isTourDownloaded(cloudTour.id);
+            const updateCheck = isDownloaded 
+              ? await checkForTourUpdate(cloudTour.id)
+              : { hasUpdate: false };
+            
+            loadedTours.push({
+              ...cloudTourToLocal(cloudTour),
+              isDownloaded,
+              hasUpdate: updateCheck.hasUpdate,
+              isCloud: true,
+            });
           }
+        } catch (error) {
+          console.warn('Failed to fetch cloud tours:', error);
         }
-        setTours(loadedTours);
-      } else {
-        // Load sample tour from assets
-        // In production, this would load from your API or bundled assets
-        setTours([createSampleTour()]);
       }
-      
-      // Check offline status for each tour
-      await checkAllOfflineStatus();
+
+      // 2. Also load any local-only tours (for backwards compatibility)
+      const localTours = await loadLocalTours();
+      for (const localTour of localTours) {
+        // Don't add duplicates
+        if (!loadedTours.find(t => t.id === localTour.id)) {
+          loadedTours.push({
+            ...localTour,
+            isDownloaded: true,
+            hasUpdate: false,
+            isCloud: false,
+          });
+        }
+      }
+
+      setTours(loadedTours);
     } catch (error) {
       console.error('Failed to load tours:', error);
+      Alert.alert('Error', 'Failed to load tours. Please check your connection.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const checkAllOfflineStatus = async () => {
-    const offlineDir = FileSystem.documentDirectory + 'offline/';
-    const status: Record<string, boolean> = {};
+  const loadLocalTours = async (): Promise<Tour[]> => {
+    const toursDir = FileSystem.documentDirectory + 'tours/';
+    const dirInfo = await FileSystem.getInfoAsync(toursDir);
     
-    for (const tour of tours) {
-      const tourOfflineDir = offlineDir + tour.id + '/';
-      const info = await FileSystem.getInfoAsync(tourOfflineDir);
-      status[tour.id] = info.exists;
+    if (!dirInfo.exists) return [];
+    
+    const folders = await FileSystem.readDirectoryAsync(toursDir);
+    const tours: Tour[] = [];
+    
+    for (const folder of folders) {
+      const tourJsonPath = toursDir + folder + '/tour.json';
+      const fileInfo = await FileSystem.getInfoAsync(tourJsonPath);
+      
+      if (fileInfo.exists) {
+        try {
+          const content = await FileSystem.readAsStringAsync(tourJsonPath);
+          tours.push(JSON.parse(content));
+        } catch (e) {
+          console.warn(`Failed to load local tour ${folder}:`, e);
+        }
+      }
     }
     
-    setOfflineStatus(status);
+    return tours;
   };
 
   const checkDismissedResume = async () => {
@@ -126,7 +188,6 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
       const dismissed = await AsyncStorage.getItem(DISMISSED_RESUME_KEY);
       if (dismissed) {
         const { tourId, timestamp } = JSON.parse(dismissed);
-        // Only hide if dismissed within last 24 hours for same tour
         const dayAgo = Date.now() - 86400000;
         if (lastPlayed && tourId === lastPlayed.tourId && new Date(timestamp).getTime() > dayAgo) {
           setShowResumeBanner(false);
@@ -143,16 +204,78 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
     setIsRefreshing(false);
   }, []);
 
-  const handleTourPress = (tour: Tour) => {
-    navigation.navigate('TourDetail', { tour });
+  const handleTourPress = async (tour: TourWithStatus) => {
+    if (!tour.isDownloaded) {
+      // Prompt to download
+      Alert.alert(
+        'Download Required',
+        `"${tour.name}" needs to be downloaded before you can start the tour.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Download', onPress: () => handleDownloadTour(tour) },
+        ]
+      );
+      return;
+    }
+
+    if (tour.hasUpdate) {
+      // Offer to update
+      Alert.alert(
+        'Update Available',
+        `A new version of "${tour.name}" is available. Would you like to update?`,
+        [
+          { text: 'Later', onPress: () => startTour(tour) },
+          { text: 'Update', onPress: () => handleDownloadTour(tour) },
+        ]
+      );
+      return;
+    }
+
+    startTour(tour);
+  };
+
+  const startTour = async (tour: TourWithStatus) => {
+    // Load the tour from local storage to get full data
+    const result = await loadTour(tour.id);
+    if (result) {
+      navigation.navigate('Tour', { tourId: tour.id });
+    } else {
+      Alert.alert('Error', 'Could not load tour data.');
+    }
+  };
+
+  const handleDownloadTour = async (tour: TourWithStatus) => {
+    setDownloadingTourId(tour.id);
+    setDownloadProgress(null);
+
+    try {
+      await downloadTourForOffline(tour.id, (progress) => {
+        setDownloadProgress(progress);
+      });
+
+      // Update tour status
+      setTours(prev => prev.map(t => 
+        t.id === tour.id 
+          ? { ...t, isDownloaded: true, hasUpdate: false }
+          : t
+      ));
+
+      Alert.alert('Success', `"${tour.name}" is ready for offline use!`);
+    } catch (error) {
+      console.error('Download failed:', error);
+      Alert.alert('Download Failed', 'Please check your internet connection and try again.');
+    } finally {
+      setDownloadingTourId(null);
+      setDownloadProgress(null);
+    }
   };
 
   const handleResumeTour = () => {
     if (lastPlayed) {
       const tour = tours.find(t => t.id === lastPlayed.tourId);
-      if (tour) {
+      if (tour && tour.isDownloaded) {
         navigation.navigate('Tour', { 
-          tour, 
+          tourId: tour.id, 
           resumeFromStop: lastPlayed.currentStopIndex 
         });
       }
@@ -177,22 +300,19 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
     await toggleFavorite(tourId);
   };
 
-  const handleOptionsPress = (tour: Tour) => {
+  const handleOptionsPress = (tour: TourWithStatus) => {
     setSelectedTour(tour);
     
-    const options = [
-      'Rate Tour',
-      'View Notes',
-      'Share Tour',
-      'Download for Offline',
-      'Cancel',
-    ];
+    const options = tour.isDownloaded
+      ? ['Rate Tour', 'View Notes', 'Share Tour', 'Delete Download', 'Cancel']
+      : ['Download Tour', 'Cancel'];
     
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options,
           cancelButtonIndex: options.length - 1,
+          destructiveButtonIndex: tour.isDownloaded ? 3 : undefined,
           title: tour.name,
         },
         (buttonIndex) => {
@@ -200,37 +320,64 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
         }
       );
     } else {
-      // Android: Use Alert or a custom modal
       Alert.alert(
         tour.name,
         'Choose an action',
         options.slice(0, -1).map((option, index) => ({
           text: option,
           onPress: () => handleOptionSelected(index, tour),
+          style: option === 'Delete Download' ? 'destructive' : 'default',
         })).concat([{ text: 'Cancel', style: 'cancel' }])
       );
     }
   };
 
-  const handleOptionSelected = (index: number, tour: Tour) => {
-    switch (index) {
-      case 0: // Rate Tour
-        setSelectedTour(tour);
-        setShowRatingModal(true);
-        break;
-      case 1: // View Notes
-        setSelectedTour(tour);
-        setShowNotesModal(true);
-        break;
-      case 2: // Share Tour
-        setSelectedTour(tour);
-        setShowShareModal(true);
-        break;
-      case 3: // Download for Offline
-        setSelectedTour(tour);
-        setShowOfflineModal(true);
-        break;
+  const handleOptionSelected = async (index: number, tour: TourWithStatus) => {
+    if (tour.isDownloaded) {
+      switch (index) {
+        case 0: // Rate Tour
+          setSelectedTour(tour);
+          setShowRatingModal(true);
+          break;
+        case 1: // View Notes
+          setSelectedTour(tour);
+          setShowNotesModal(true);
+          break;
+        case 2: // Share Tour
+          setSelectedTour(tour);
+          setShowShareModal(true);
+          break;
+        case 3: // Delete Download
+          handleDeleteDownload(tour);
+          break;
+      }
+    } else {
+      if (index === 0) { // Download Tour
+        handleDownloadTour(tour);
+      }
     }
+  };
+
+  const handleDeleteDownload = async (tour: TourWithStatus) => {
+    Alert.alert(
+      'Delete Download',
+      `Are you sure you want to delete "${tour.name}"? You can re-download it later.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteTourDownload(tour.id);
+            setTours(prev => prev.map(t => 
+              t.id === tour.id 
+                ? { ...t, isDownloaded: false, hasUpdate: false }
+                : t
+            ));
+          },
+        },
+      ]
+    );
   };
 
   const handleRatingSubmit = async (rating: number, review: string) => {
@@ -251,9 +398,8 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
     switch (activeFilter) {
       case 'favorites':
         return isFavorite(tour.id);
-      case 'in-progress':
-        const progress = getProgressPercentage(tour.id);
-        return progress > 0 && progress < 100;
+      case 'downloaded':
+        return tour.isDownloaded;
       case 'completed':
         return getProgressPercentage(tour.id) === 100;
       default:
@@ -261,28 +407,74 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
     }
   });
 
-  const renderTourCard = ({ item: tour }: { item: Tour }) => {
+  const renderTourCard = ({ item: tour }: { item: TourWithStatus }) => {
     const rating = getRating(tour.id);
     const tourNotes = getNotesForTour(tour.id);
     const progress = getProgressPercentage(tour.id);
+    const isDownloading = downloadingTourId === tour.id;
     
     return (
-      <TourCard
-        tour={tour}
-        isFavorite={isFavorite(tour.id)}
-        rating={rating?.rating}
-        noteCount={tourNotes.length}
-        progressPercentage={progress}
-        isOfflineReady={offlineStatus[tour.id] || false}
-        onPress={() => handleTourPress(tour)}
-        onFavoriteToggle={() => handleFavoriteToggle(tour.id)}
-        onOptionsPress={() => handleOptionsPress(tour)}
-      />
+      <View>
+        <TourCard
+          tour={tour}
+          isFavorite={isFavorite(tour.id)}
+          rating={rating?.rating}
+          noteCount={tourNotes.length}
+          progressPercentage={progress}
+          isOfflineReady={tour.isDownloaded}
+          onPress={() => handleTourPress(tour)}
+          onFavoriteToggle={() => handleFavoriteToggle(tour.id)}
+          onOptionsPress={() => handleOptionsPress(tour)}
+        />
+        
+        {/* Download indicator */}
+        {!tour.isDownloaded && !isDownloading && (
+          <View style={styles.cloudBadge}>
+            <Ionicons name="cloud-download-outline" size={14} color="#0891b2" />
+            <Text style={styles.cloudBadgeText}>Tap to download</Text>
+          </View>
+        )}
+        
+        {/* Update available indicator */}
+        {tour.isDownloaded && tour.hasUpdate && (
+          <View style={[styles.cloudBadge, styles.updateBadge]}>
+            <Ionicons name="refresh" size={14} color="#f59e0b" />
+            <Text style={[styles.cloudBadgeText, styles.updateText]}>Update available</Text>
+          </View>
+        )}
+        
+        {/* Download progress */}
+        {isDownloading && downloadProgress && (
+          <View style={styles.downloadProgress}>
+            <View style={styles.downloadProgressBar}>
+              <View 
+                style={[
+                  styles.downloadProgressFill, 
+                  { width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }
+                ]} 
+              />
+            </View>
+            <Text style={styles.downloadProgressText}>
+              {downloadProgress.currentFile}
+            </Text>
+          </View>
+        )}
+      </View>
     );
   };
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
+      {/* Connection status */}
+      {!firebaseConnected && (
+        <View style={styles.offlineWarning}>
+          <Ionicons name="cloud-offline" size={16} color="#f59e0b" />
+          <Text style={styles.offlineWarningText}>
+            Offline mode - showing downloaded tours only
+          </Text>
+        </View>
+      )}
+      
       {/* Resume Banner */}
       {showResumeBanner && lastPlayed && (
         <ResumeTourBanner
@@ -294,7 +486,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
 
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
-        {(['all', 'favorites', 'in-progress', 'completed'] as FilterType[]).map(filter => (
+        {(['all', 'downloaded', 'favorites', 'completed'] as FilterType[]).map(filter => (
           <TouchableOpacity
             key={filter}
             style={[
@@ -309,9 +501,9 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                 activeFilter === filter && styles.filterTabTextActive,
               ]}
             >
-              {filter === 'all' ? 'All Tours' :
-               filter === 'favorites' ? 'Favorites' :
-               filter === 'in-progress' ? 'In Progress' : 'Completed'}
+              {filter === 'all' ? 'All' :
+               filter === 'downloaded' ? 'Downloaded' :
+               filter === 'favorites' ? 'Favorites' : 'Completed'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -321,31 +513,50 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons
-        name={
-          activeFilter === 'favorites' ? 'heart-outline' :
-          activeFilter === 'in-progress' ? 'play-circle-outline' :
-          activeFilter === 'completed' ? 'checkmark-circle-outline' :
-          'map-outline'
-        }
-        size={64}
-        color="#d1d5db"
-      />
-      <Text style={styles.emptyTitle}>
-        {activeFilter === 'favorites' ? 'No Favorites Yet' :
-         activeFilter === 'in-progress' ? 'No Tours In Progress' :
-         activeFilter === 'completed' ? 'No Completed Tours' :
-         'No Tours Available'}
-      </Text>
-      <Text style={styles.emptyText}>
-        {activeFilter === 'favorites'
-          ? 'Tap the heart icon on any tour to add it to your favorites.'
-          : activeFilter === 'in-progress'
-          ? 'Start a tour and your progress will appear here.'
-          : activeFilter === 'completed'
-          ? 'Complete a tour to see it here.'
-          : 'Add tours to get started exploring!'}
-      </Text>
+      {isLoading ? (
+        <>
+          <ActivityIndicator size="large" color="#0891b2" />
+          <Text style={styles.emptyText}>Loading tours...</Text>
+        </>
+      ) : (
+        <>
+          <Ionicons
+            name={
+              activeFilter === 'favorites' ? 'heart-outline' :
+              activeFilter === 'downloaded' ? 'cloud-download-outline' :
+              activeFilter === 'completed' ? 'checkmark-circle-outline' :
+              'map-outline'
+            }
+            size={64}
+            color="#d1d5db"
+          />
+          <Text style={styles.emptyTitle}>
+            {activeFilter === 'favorites' ? 'No Favorites Yet' :
+             activeFilter === 'downloaded' ? 'No Downloaded Tours' :
+             activeFilter === 'completed' ? 'No Completed Tours' :
+             'No Tours Available'}
+          </Text>
+          <Text style={styles.emptyText}>
+            {activeFilter === 'favorites'
+              ? 'Tap the heart icon on any tour to add it to your favorites.'
+              : activeFilter === 'downloaded'
+              ? 'Download a tour to use it offline.'
+              : activeFilter === 'completed'
+              ? 'Complete a tour to see it here.'
+              : 'Pull down to refresh or check your connection.'}
+          </Text>
+          
+          {activeFilter === 'all' && !firebaseConnected && (
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={handleRefresh}
+            >
+              <Ionicons name="refresh" size={18} color="white" />
+              <Text style={styles.retryButtonText}>Retry Connection</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
     </View>
   );
 
@@ -353,7 +564,12 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Audio Tours</Text>
+        <View>
+          <Text style={styles.title}>Audio Tours</Text>
+          {firebaseConnected && (
+            <Text style={styles.subtitle}>{tours.length} tours available</Text>
+          )}
+        </View>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
@@ -410,59 +626,10 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
             tour={selectedTour}
             onClose={() => setShowShareModal(false)}
           />
-
-          <OfflineManager
-            visible={showOfflineModal}
-            tour={selectedTour}
-            basePath={FileSystem.documentDirectory + 'tours/' + selectedTour.id + '/'}
-            onClose={() => setShowOfflineModal(false)}
-            onDownloadComplete={() => {
-              setOfflineStatus(prev => ({ ...prev, [selectedTour.id]: true }));
-            }}
-          />
         </>
       )}
     </View>
   );
-}
-
-// Sample tour for testing
-function createSampleTour(): Tour {
-  return {
-    id: 'sample-tour',
-    name: 'Sample Walking Tour',
-    description: 'A demonstration tour to showcase the app features.',
-    version: '1.0',
-    author: 'Audio Tour App',
-    language: 'en',
-    stops: [
-      {
-        id: 1,
-        name: 'Starting Point',
-        latitude: 53.4808,
-        longitude: -2.2426,
-        triggerRadius: 30,
-        audioFile: 'audio/stop1.mp3',
-        script: 'Welcome to the tour!',
-      },
-      {
-        id: 2,
-        name: 'Second Stop',
-        latitude: 53.4815,
-        longitude: -2.2440,
-        triggerRadius: 30,
-        audioFile: 'audio/stop2.mp3',
-        script: 'This is the second stop.',
-      },
-    ],
-    startPoint: {
-      latitude: 53.4808,
-      longitude: -2.2426,
-      address: 'Manchester, UK',
-    },
-    totalDistance: 0.5,
-    estimatedDuration: 30,
-  };
 }
 
 const styles = StyleSheet.create({
@@ -485,11 +652,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
+  subtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 2,
+  },
   settingsButton: {
     padding: 8,
   },
   headerContainer: {
     paddingTop: 16,
+  },
+  offlineWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef3c7',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 10,
+  },
+  offlineWarningText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400e',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -518,6 +705,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 32,
   },
+  cloudBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    position: 'absolute',
+    top: 12,
+    left: 12,
+  },
+  cloudBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0891b2',
+  },
+  updateBadge: {
+    backgroundColor: '#fef3c7',
+  },
+  updateText: {
+    color: '#92400e',
+  },
+  downloadProgress: {
+    backgroundColor: 'white',
+    marginTop: -8,
+    marginBottom: 16,
+    marginHorizontal: 4,
+    padding: 12,
+    borderRadius: 12,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: '#e5e7eb',
+  },
+  downloadProgressBar: {
+    height: 6,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  downloadProgressFill: {
+    height: '100%',
+    backgroundColor: '#0891b2',
+    borderRadius: 3,
+  },
+  downloadProgressText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -536,5 +775,20 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#0891b2',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 20,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

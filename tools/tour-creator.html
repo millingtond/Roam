@@ -7,6 +7,10 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <style>
         :root {
             --bg-primary: #fafafa;
@@ -808,6 +812,69 @@
             margin-bottom: 8px;
         }
 
+        /* Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .tour-file-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .tour-file-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent);
+        }
+
+        .tour-file-card h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            padding-right: 20px;
+        }
+
+        .tour-file-card p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .tour-file-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .delete-tour-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-tour-btn:hover {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
         /* Modals */
         .modal {
             position: fixed;
@@ -1137,21 +1204,35 @@
     <header class="header">
         <div class="header-left">
             <div class="logo">
-                <div class="logo-icon">🎧</div>
-                <h1>Audio Tour Creator<span>Pro</span></h1>
+    <div class="logo-icon">🎧</div>
+    <h1>Audio Tour Creator<span>Pro</span></h1>
+</div>
+            <div style="margin-left: 20px; border-left: 1px solid var(--border-color); padding-left: 20px;">
+                <button class="btn btn-secondary" onclick="returnToDashboard()">🏠 All Tours</button>
             </div>
         </div>
         <div class="header-actions">
+            <span id="saveIndicator" style="font-size: 11px; color: var(--text-muted); margin-right: 10px; transition: opacity 0.5s; opacity: 0;">Saved</span>
             <div class="undo-redo">
                 <button onclick="undo()" id="undoBtn" disabled title="Undo (Ctrl+Z)">↶</button>
                 <button onclick="redo()" id="redoBtn" disabled title="Redo (Ctrl+Y)">↷</button>
             </div>
+            <button class="btn btn-primary" onclick="uploadTourToCloud()" id="cloudUploadBtn" style="display: none; background: #7c3aed; margin-right: 8px;">
+                ☁️ Upload
+            </button>
             <button class="btn btn-secondary" onclick="openTourSettings()">⚙️ Settings</button>
             <button class="btn btn-success" onclick="generateAllDirections()">🧭 Auto-Directions</button>
             <div class="dropdown">
                 <button class="btn btn-primary" onclick="toggleExportMenu()">📦 Export ▾</button>
                 <div class="dropdown-menu" id="exportMenu">
+                    <button class="dropdown-item" onclick="openArchitectModal()">🚀 AI Tour Architect</button>
+                    <button class="dropdown-item" onclick="openRefineModal()">✨ AI Tour Refiner</button>
+                    <div class="dropdown-divider"></div>
                     <button class="dropdown-item" onclick="exportTour()">📄 Export tour.json</button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item" onclick="generateBatchPrompt()">🤖 Generate Batch Prompt</button>
+                    <button class="dropdown-item" onclick="openBatchImportModal()">📥 Import AI Scripts</button>
+                    <div class="dropdown-divider"></div>
                     <button class="dropdown-item" onclick="exportGPX()">🗺️ Export GPX</button>
                     <button class="dropdown-item" onclick="exportCSV()">📊 Export CSV</button>
                     <div class="dropdown-divider"></div>
@@ -1300,6 +1381,26 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Stop Image</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="file" id="imageUpload" accept="image/*" style="display: none;" onchange="uploadMedia('image')">
+                        <button class="btn btn-secondary" onclick="document.getElementById('imageUpload').click()">📁 Upload Image</button>
+                        <span id="imageStatus" style="font-size: 12px; color: var(--text-secondary);">No file</span>
+                    </div>
+                    <input type="hidden" id="editImage"> <img id="imagePreview" style="width: 100%; height: 150px; object-fit: cover; margin-top: 8px; border-radius: 6px; display: none; background: #eee;">
+                </div>
+
+                <div class="form-group">
+                    <label>Stop Audio</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="file" id="audioUpload" accept="audio/*" style="display: none;" onchange="uploadMedia('audio')">
+                        <button class="btn btn-secondary" onclick="document.getElementById('audioUpload').click()">🎙️ Upload Audio</button>
+                        <span id="audioStatus" style="font-size: 12px; color: var(--text-secondary);">No file</span>
+                    </div>
+                    <input type="hidden" id="editAudio"> <audio id="audioPreview" controls style="width: 100%; margin-top: 8px; display: none;"></audio>
+                </div>
+
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                     <button class="btn btn-danger" onclick="deleteCurrentStop()" style="width: 100%;">
                         🗑️ Delete This Stop
@@ -1311,9 +1412,22 @@
             <div class="tab-content" id="scriptTab">
                 <div class="ai-helper">
                     <h4>✨ AI Script Helper</h4>
-                    <p>Generate a prompt for Claude or ChatGPT to write your tour script.</p>
-                    <button onclick="generateAIPrompt()">Generate Prompt</button>
+                    <p>1. Add specific details in "Context for AI" below.</p>
+                    <p>2. Generate a prompt for this specific stop.</p>
+                    <button onclick="generateAIPrompt()">Generate Single Prompt</button>
                 </div>
+
+                <div class="form-group">
+                    <label>Context for AI <span class="label-hint">(Optional)</span></label>
+                    <textarea id="editContext" rows="3" 
+                              placeholder="e.g., Mention that this mill was built in 1840, or tell the story about the ghost in the window..."
+                              onchange="saveCurrentStop()"></textarea>
+                    <div class="char-count">
+                        Specific facts you want the AI to include in the script
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
 
                 <div class="script-stats">
                     <div class="script-stat">
@@ -1322,27 +1436,20 @@
                     </div>
                     <div class="script-stat">
                         <div class="script-stat-value" id="speakingTime">0s</div>
-                        <div class="script-stat-label">Speaking Time</div>
-                    </div>
-                    <div class="script-stat">
-                        <div class="script-stat-value" id="charCount">0</div>
-                        <div class="script-stat-label">Characters</div>
+                        <div class="script-stat-label">Time</div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Audio Script *</label>
-                    <textarea id="editScript" rows="12" 
-                              placeholder="Write what the audio guide will say at this stop..."
+                    <label>Final Audio Script *</label>
+                    <textarea id="editScript" rows="8" 
+                              placeholder="The actual text that will be spoken..."
                               oninput="updateScriptStats()" 
                               onchange="saveCurrentStop()"></textarea>
-                    <div class="char-count">
-                        Aim for 100-200 words (~40-80 seconds of audio)
-                    </div>
                 </div>
 
                 <button class="btn btn-secondary" onclick="previewScript()" style="width: 100%;">
-                    🔊 Preview with Text-to-Speech
+                    🔊 Preview Audio
                 </button>
             </div>
 
@@ -1490,7 +1597,89 @@
     </div>
 
     <!-- AI Prompt Modal -->
-    <div class="modal hidden" id="aiPromptModal">
+            <div class="modal hidden" id="refineModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✨ AI Tour Refiner</h3>
+                <button class="modal-close" onclick="closeModal('refineModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>What would you like to change?</label>
+                    <textarea id="refineInstructions" rows="4" 
+                        placeholder="e.g., 'Rewrite all scripts to be humorous', 'Add a stop at the Cathedral between stops 2 and 3', 'Translate to Spanish'"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Step 1: Generate Prompt</label>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                        This will package your CURRENT tour data with your instructions.
+                    </p>
+                    <button class="btn btn-primary" style="width: 100%" onclick="generateRefinePrompt()">
+                        📋 Generate & Copy Prompt
+                    </button>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Step 2: Paste AI Response</label>
+                    <textarea id="refinePasteInput" rows="6" placeholder="Paste the updated JSON here..." 
+                              style="font-family: monospace; font-size: 11px;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('refineModal')">Cancel</button>
+                <button class="btn btn-success" onclick="processRefineImport()">✨ Update Tour</button>
+            </div>
+        </div>
+    </div>
+<div class="modal hidden" id="architectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🚀 AI Tour Architect</h3>
+                <button class="modal-close" onclick="closeModal('architectModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Target City / Area</label>
+                    <input type="text" id="archCity" placeholder="e.g., Bollington, Macclesfield, UK">
+                </div>
+                <div class="form-group">
+                    <label>Tour Theme</label>
+                    <input type="text" id="archTheme" placeholder="e.g., Industrial History, Ghost Stories, Best Pubs">
+                </div>
+                <div class="form-group">
+                    <label>Approx. Number of Stops</label>
+                    <input type="number" id="archCount" value="5" min="3" max="20">
+                </div>
+                
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
+                
+                <div class="form-group">
+                    <label>Step 1: Generate Prompt</label>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                        Copy this prompt and paste it into ChatGPT (GPT-4 recommended) or Claude.
+                    </p>
+                    <button class="btn btn-primary" style="width: 100%" onclick="generateArchitectPrompt()">
+                        ✨ Generate Master Prompt
+                    </button>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Step 2: Paste AI Response</label>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                        Paste the JSON code block the AI gives you here.
+                    </p>
+                    <textarea id="archPasteInput" rows="6" placeholder='{ "name": "My Tour", "stops": [...] }' 
+                              style="font-family: monospace; font-size: 11px;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('architectModal')">Cancel</button>
+                <button class="btn btn-success" onclick="processArchitectImport()">🚀 Build Tour</button>
+            </div>
+        </div>
+    </div>
+<div class="modal hidden" id="aiPromptModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>🤖 AI Script Prompt</h3>
@@ -1512,8 +1701,30 @@
         </div>
     </div>
 
+        <div class="modal" id="dashboardModal" style="background: var(--bg-primary);">
+        <div class="modal-content" style="max-width: 900px; height: 80vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="logo-icon">🎧</div>
+                    <h3>My Tours</h3>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">📥 Import JSON</button>
+                    <button class="btn btn-primary" onclick="createNewTour()">+ Create New Tour</button>
+                </div>
+            </div>
+            <div class="modal-body" style="background: var(--bg-tertiary); flex: 1;">
+                <div id="tourGrid" class="dashboard-grid">
+                    </div>
+                <div id="emptyDashboard" class="empty-state" style="display: none;">
+                    <h3>No tours found</h3>
+                    <p>Create a new tour or import an existing JSON file.</p>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Hidden file input -->
-    <input type="file" id="fileInput" accept=".json" onchange="handleFileImport(event)" style="display: none;">
+<input type="file" id="fileInput" accept=".json" onchange="handleFileImport(event)" style="display: none;">
 
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
@@ -1552,6 +1763,7 @@
 
         let selectedStopIndex = -1;
         let map = null;
+        let tileLayer = null;
         let markers = [];
         let routeLine = null;
         let detailedRouteLine = null;
@@ -1562,38 +1774,92 @@
         const MAX_HISTORY = 50;
 
         // ============================================
-        // INITIALIZATION
+        // FIREBASE INTEGRATION
         // ============================================
-        document.addEventListener('DOMContentLoaded', () => {
-            initMap();
-            loadFromLocalStorage();
-            loadTheme();
-            updateUI();
+        let db, storage;
+
+        function initFirebase() {
+            // Check if the external config file loaded successfully
+            if (typeof FIREBASE_CONFIG === 'undefined') {
+                console.warn('firebase-config.js not found or invalid.');
+                return;
+            }
+
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(FIREBASE_CONFIG);
+                    db = firebase.firestore();
+                    storage = firebase.storage();
+
+                    // Show the upload button now that we are connected
+                    const btn = document.getElementById('cloudUploadBtn');
+                    if (btn) btn.style.display = 'inline-flex';
+
+                    console.log('Firebase Connected via config file');
+                }
+            } catch (e) {
+                console.error('Firebase init failed:', e);
+                showToast('Firebase Error: ' + e.message, 'error');
+            }
+        }
+
+        async function uploadTourToCloud() {
+            if (!db) return showToast('Error: Firebase not connected. Check firebase-config.js', 'error');
             
-            // Keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                if (e.ctrlKey || e.metaKey) {
-                    if (e.key === 'z') {
-                        e.preventDefault();
-                        if (e.shiftKey) redo();
-                        else undo();
-                    } else if (e.key === 'y') {
-                        e.preventDefault();
-                        redo();
-                    } else if (e.key === 's') {
-                        e.preventDefault();
-                        exportTour();
+            showToast('Uploading tour data...', 'info');
+            
+            try {
+                // Ensure ID exists
+                if (!tourData.id) tourData.id = 'tour-' + Date.now();
+
+                // 1. Create a deep copy so we don't modify the active UI data
+                const uploadData = JSON.parse(JSON.stringify(tourData));
+
+                // 2. Fix Firestore "Nested Arrays" limitation
+                // Firestore cannot store [[lat,lng], [lat,lng]]. We must convert to [{lat:x, lng:y}, ...]
+                
+                if (uploadData.route) {
+                    // Convert Waypoints (Stop locations)
+                    if (uploadData.route.waypoints && Array.isArray(uploadData.route.waypoints)) {
+                        uploadData.route.waypoints = uploadData.route.waypoints.map(pt => {
+                            // Handle if it's already an object (re-upload case) or array
+                            return Array.isArray(pt) ? { lat: pt[0], lng: pt[1] } : pt;
+                        });
+                    }
+
+                    // Convert Detailed Path (Walking geometry)
+                    if (uploadData.route.detailedPath && Array.isArray(uploadData.route.detailedPath)) {
+                        uploadData.route.detailedPath = uploadData.route.detailedPath.map(pt => {
+                            // Note: OSRM/GeoJSON usually returns [lng, lat], Leaflet uses [lat, lng]
+                            // We strictly store what is in memory to preserve the visual line
+                            return Array.isArray(pt) ? { lat: pt[0], lng: pt[1] } : pt;
+                        });
                     }
                 }
-            });
-        });
+
+                // 3. Upload to "tours" collection
+                await db.collection('tours').doc(uploadData.id).set({
+                    ...uploadData,
+                    updatedAt: new Date().toISOString()
+                });
+
+                showToast('✅ Tour Synced to Cloud!', 'success');
+            } catch (e) {
+                console.error(e);
+                showToast('Upload failed: ' + e.message, 'error');
+            }
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
 
         function initMap() {
-            map = L.map('map').setView([52.4064, 16.9342], 13);
+            // Coordinates for Bollington, Macclesfield [53.296, -2.105]
+            map = L.map('map').setView([53.2962, -2.1054], 14);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
+            // Initial tile load based on current theme
+            updateMapTiles();
 
             map.on('click', (e) => {
                 addStop(e.latlng.lat, e.latlng.lng);
@@ -1661,7 +1927,9 @@
                 audioFile: `audio/${String(stopNumber).padStart(2, '0')}-stop.mp3`,
                 audioDuration: 0,
                 imageFile: `images/${String(stopNumber).padStart(2, '0')}-stop.jpg`,
+                videoFile: '',
                 script: '',
+                context: '',
                 directionToNext: '',
                 distanceToNext: null,
                 walkingTimeToNext: null
@@ -1719,7 +1987,34 @@
             document.getElementById('editLat').value = stop.latitude;
             document.getElementById('editLng').value = stop.longitude;
             document.getElementById('editRadius').value = stop.triggerRadius || 25;
+            
+            // Image Handling
+            document.getElementById('editImage').value = stop.imageFile || '';
+            const imgPreview = document.getElementById('imagePreview');
+            const imgStatus = document.getElementById('imageStatus');
+            if (stop.imageFile && stop.imageFile.startsWith('http')) {
+                imgPreview.src = stop.imageFile;
+                imgPreview.style.display = 'block';
+                imgStatus.textContent = '✅ Cloud File';
+            } else {
+                imgPreview.style.display = 'none';
+                imgStatus.textContent = stop.imageFile ? '⚠️ Local Path' : 'No file';
+            }
+
+            // Audio Handling
+            document.getElementById('editAudio').value = stop.audioFile || '';
+            const audPreview = document.getElementById('audioPreview');
+            const audStatus = document.getElementById('audioStatus');
+            if (stop.audioFile && stop.audioFile.startsWith('http')) {
+                audPreview.src = stop.audioFile;
+                audPreview.style.display = 'block';
+                audStatus.textContent = '✅ Cloud File';
+            } else {
+                audPreview.style.display = 'none';
+                audStatus.textContent = stop.audioFile ? '⚠️ Local Path' : 'No file';
+            }
             document.getElementById('editScript').value = stop.script || '';
+            document.getElementById('editContext').value = stop.context || '';
             document.getElementById('editDirection').value = stop.directionToNext || '';
             
             // Calculate audio duration from script
@@ -1760,6 +2055,52 @@
             }
         }
 
+        async function uploadMedia(type) {
+            if (!storage) return showToast('Connect Firebase first!', 'error');
+            if (selectedStopIndex < 0) return;
+
+            const inputId = type === 'image' ? 'imageUpload' : 'audioUpload';
+            const statusId = type === 'image' ? 'imageStatus' : 'audioStatus';
+            const file = document.getElementById(inputId).files[0];
+            
+            if (!file) return;
+
+            const statusEl = document.getElementById(statusId);
+            statusEl.textContent = 'Uploading...';
+            
+            try {
+                // Path: tours/{tourId}/stops/{stopId}/{filename}
+                const path = `tours/${tourData.id}/stops/${selectedStopIndex + 1}/${file.name}`;
+                const ref = storage.ref().child(path);
+                
+                await ref.put(file);
+                const url = await ref.getDownloadURL();
+                
+                // Update Data Model
+                const stop = tourData.stops[selectedStopIndex];
+                if (type === 'image') {
+                    stop.imageFile = url;
+                    document.getElementById('editImage').value = url;
+                    document.getElementById('imagePreview').src = url;
+                    document.getElementById('imagePreview').style.display = 'block';
+                } else {
+                    stop.audioFile = url;
+                    document.getElementById('editAudio').value = url;
+                    document.getElementById('audioPreview').src = url;
+                    document.getElementById('audioPreview').style.display = 'block';
+                }
+                
+                statusEl.textContent = '✅ Uploaded';
+                saveState();
+                updateUI();
+                
+            } catch (e) {
+                console.error(e);
+                statusEl.textContent = '❌ Error';
+                alert('Upload failed: ' + e.message);
+            }
+        }
+
         function saveCurrentStop() {
             if (selectedStopIndex < 0 || selectedStopIndex >= tourData.stops.length) return;
 
@@ -1767,7 +2108,14 @@
             stop.name = document.getElementById('editName').value;
             stop.nameTranslated = document.getElementById('editNameTranslated').value || null;
             stop.triggerRadius = parseInt(document.getElementById('editRadius').value) || 25;
+            const imageInput = document.getElementById('editImage');
+            if (imageInput) stop.imageFile = imageInput.value;
+            const audioInput = document.getElementById('editAudio');
+            if (audioInput) stop.audioFile = audioInput.value;
+            const videoInput = document.getElementById('editVideo');
+            if (videoInput) stop.videoFile = videoInput.value;
             stop.script = document.getElementById('editScript').value;
+            stop.context = document.getElementById('editContext').value;
             stop.directionToNext = document.getElementById('editDirection').value;
 
             // Update audio duration estimate
@@ -2189,6 +2537,7 @@
                 const hasScript = words > 0;
                 const hasDirections = stop.directionToNext && stop.directionToNext.trim();
                 const isLastStop = index === tourData.stops.length - 1;
+                const isLongWalk = !isLastStop && stop.distanceToNext > 800;
 
                 return `
                     <div class="stop-card ${index === selectedStopIndex ? 'active' : ''}" 
@@ -2201,6 +2550,11 @@
                             <span>${hasScript ? '✅' : '⚠️'} ${words} words</span>
                             ${!isLastStop ? `<span>${stop.distanceToNext || '?'}m</span>` : ''}
                         </div>
+                        ${isLongWalk ? `
+                            <div style="font-size: 11px; background: #fff7ed; color: #c2410c; padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid #ffedd5;">
+                                🏃 Long walk to next stop (${Math.round(stop.distanceToNext / 60)} min)
+                            </div>
+                        ` : ''}
                         ${!isLastStop ? `
                             <div class="stop-directions-preview ${hasDirections ? '' : 'missing'}">
                                 ${hasDirections ? 
@@ -2354,7 +2708,10 @@
             const seconds = Math.round(words / 150 * 60);
 
             document.getElementById('wordCount').textContent = words;
-            document.getElementById('charCount').textContent = chars;
+            const charCount = document.getElementById('charCount');
+        if (charCount) {
+            charCount.textContent = chars;
+        }
             document.getElementById('speakingTime').textContent = `${seconds}s`;
         }
 
@@ -2362,37 +2719,19 @@
             if (selectedStopIndex < 0) return;
 
             const stop = tourData.stops[selectedStopIndex];
-            const prevStop = selectedStopIndex > 0 ? tourData.stops[selectedStopIndex - 1] : null;
-            const nextStop = selectedStopIndex < tourData.stops.length - 1 ? tourData.stops[selectedStopIndex + 1] : null;
+            const userContext = document.getElementById('editContext').value;
 
-            const prompt = `I'm creating an audio walking tour. Please write a 60-90 second narration script (100-150 words) for this stop:
+            const prompt = `Write a 60-90 second audio tour script for a stop named "${stop.name}".
+    
+${userContext ? `IMPORTANT CONTEXT TO INCLUDE: ${userContext}` : ''}
 
-**Stop Name:** ${stop.name}
-**Location:** ${stop.latitude}, ${stop.longitude}
-**Stop Number:** ${stop.id} of ${tourData.stops.length}
-${prevStop ? `**Previous Stop:** ${prevStop.name}` : '**This is the first stop**'}
-${nextStop ? `**Next Stop:** ${nextStop.name}` : '**This is the final stop**'}
-
-**Tour Context:**
-- Tour Name: ${tourData.name}
-- Description: ${tourData.description || 'A walking tour'}
-- Language: ${tourData.language}
-
-**Script Requirements:**
-1. Open with an engaging hook or interesting fact
-2. Provide historical or cultural context
-3. Describe what the visitor is seeing
-4. Include a sensory detail (sound, smell, atmosphere)
-${nextStop ? '5. End with a natural transition to the next stop' : '5. End with a memorable conclusion to the tour'}
-
-**Tone:** Conversational and engaging, like a knowledgeable friend showing someone around. Avoid dry, encyclopedic language.
-
-Please write ONLY the script text, no headers or formatting.`;
+Location Data: ${stop.latitude}, ${stop.longitude}
+Tone: Conversational, engaging, storytelling.
+Requirement: Just the spoken text, no formatting.`;
 
             document.getElementById('aiPromptText').textContent = prompt;
             document.getElementById('aiPromptModal').classList.remove('hidden');
         }
-
         function copyPromptToClipboard() {
             const text = document.getElementById('aiPromptText').textContent;
             navigator.clipboard.writeText(text).then(() => {
@@ -2692,39 +3031,307 @@ python generate_audio.py ./${tourId} --overwrite
             document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
             document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
             localStorage.setItem('theme', isDark ? 'light' : 'dark');
+            updateMapTiles();
+        }
+
+        function updateMapTiles() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            
+            if (tileLayer) map.removeLayer(tileLayer);
+
+            const url = isDark 
+                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' 
+                : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+                
+            const attribution = isDark 
+                ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+            tileLayer = L.tileLayer(url, { attribution }).addTo(map);
         }
 
         function loadTheme() {
             const saved = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', saved);
             document.getElementById('themeBtn').textContent = saved === 'dark' ? '☀️' : '🌙';
+            updateMapTiles();
         }
 
         // ============================================
-        // LOCAL STORAGE
+        // BATCH AI GENERATION
         // ============================================
-        function saveToLocalStorage() {
-            try {
-                localStorage.setItem('tourCreatorData', JSON.stringify(tourData));
-            } catch (e) {
-                console.warn('Could not save to localStorage:', e);
+
+        function generateBatchPrompt() {
+            if (tourData.stops.length === 0) {
+                showToast('No stops to generate!', 'error');
+                return;
             }
-        }
 
-        function loadFromLocalStorage() {
-            try {
-                const saved = localStorage.getItem('tourCreatorData');
-                if (saved) {
-                    tourData = JSON.parse(saved);
-                    // Initialize history with loaded state
-                    history = [JSON.stringify(tourData)];
-                    historyIndex = 0;
+            let prompt = `I need audio tour scripts for ${tourData.stops.length} stops. 
+You must output the result as a raw JSON array of strings. Do not include markdown formatting or explanations.
+
+Here is the list of stops:
+
+`;
+
+            tourData.stops.forEach((stop, i) => {
+                prompt += `STOP ${i + 1}: "${stop.name}"
+`;
+                if (stop.context) {
+                    prompt += `CONTEXT/FACTS TO INCLUDE: ${stop.context}
+`;
                 }
+                prompt += `---
+`;
+            });
+
+            prompt += `
+
+OUTPUT FORMAT REQUIRED:
+[
+  "Script for stop 1...",
+  "Script for stop 2...",
+  "Script for stop 3..."
+]`;
+
+            document.getElementById('aiPromptText').textContent = prompt;
+            document.getElementById('aiPromptModal').classList.remove('hidden');
+        }
+
+        function openBatchImportModal() {
+            // We'll reuse the AI Prompt modal but change the buttons
+            const modal = document.getElementById('aiPromptModal');
+            const title = modal.querySelector('h3');
+            const body = modal.querySelector('.modal-body');
+            const footer = modal.querySelector('.modal-footer');
+            
+            // Save original content to restore later if needed (simplified here)
+            title.textContent = '📥 Batch Import Scripts';
+            
+            body.innerHTML = `
+        <p style="margin-bottom: 10px">Paste the JSON array provided by the AI here:</p>
+        <textarea id="batchImportInput" style="width: 100%; height: 300px; padding: 10px; font-family: monospace;" placeholder='["Script 1", "Script 2"]'></textarea>
+    `;
+            
+            footer.innerHTML = `
+        <button class="btn btn-secondary" onclick="location.reload()">Cancel</button>
+        <button class="btn btn-primary" onclick="processBatchImport()">Import Scripts</button>
+    `;
+            
+            modal.classList.remove('hidden');
+        }
+
+        function processBatchImport() {
+            try {
+                const input = document.getElementById('batchImportInput').value;
+                const scripts = JSON.parse(input);
+                
+                if (!Array.isArray(scripts)) throw new Error("Not a JSON Array");
+                if (scripts.length !== tourData.stops.length) {
+                    alert(`Count mismatch! You have ${tourData.stops.length} stops but pasted ${scripts.length} scripts.`);
+                    return;
+                }
+
+                // Apply scripts
+                scripts.forEach((script, i) => {
+                    tourData.stops[i].script = script;
+                    // Auto-calculate duration
+                    const words = script.trim().split(/\s+/).filter(w => w).length;
+                    tourData.stops[i].audioDuration = Math.round(words / 150 * 60);
+                });
+
+                saveState();
+                updateUI();
+                document.getElementById('aiPromptModal').classList.add('hidden');
+                showToast('Successfully imported all scripts!', 'success');
+                
+                // Reload page to restore modal state (quick fix)
+                setTimeout(() => location.reload(), 1500);
+
             } catch (e) {
-                console.warn('Could not load from localStorage:', e);
+                alert('Invalid JSON! Make sure you pasted exactly what the AI output (an array of strings).');
+            }
+        }
+        // ============================================
+        // TOUR MANAGER (STORAGE)
+        // ============================================
+        
+        // Show dashboard on load instead of auto-loading last state
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            loadTheme();
+            renderDashboard(); // Show the home screen
+            initFirebase(); // Try to connect if config exists
+            
+            // If we have a currently open tour in memory, don't show dashboard
+            // But on fresh refresh, show dashboard
+            document.getElementById('dashboardModal').classList.remove('hidden');
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 'z') {
+                        e.preventDefault();
+                        if (e.shiftKey) redo();
+                        else undo();
+                    } else if (e.key === 'y') {
+                        e.preventDefault();
+                        redo();
+                    } else if (e.key === 's') {
+                        e.preventDefault();
+                        exportTour();
+                    }
+                }
+            });
+        });
+
+        function renderDashboard() {
+            const grid = document.getElementById('tourGrid');
+            const empty = document.getElementById('emptyDashboard');
+            grid.innerHTML = '';
+            
+            const tours = getAllSavedTours();
+            
+            if (tours.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+            
+            empty.style.display = 'none';
+            
+            tours.forEach(tour => {
+                const card = document.createElement('div');
+                card.className = 'tour-file-card';
+                card.onclick = (e) => {
+                    if(!e.target.closest('.delete-tour-btn')) loadTour(tour.id);
+                };
+                
+                card.innerHTML = `
+                    <h3>${tour.name}</h3>
+                    <p>${tour.stops} stops • ${tour.location}</p>
+                    <div class="tour-file-meta">
+                        <span>ID: ${tour.id}</span>
+                        <span>Updated: ${new Date(tour.updated).toLocaleDateString()}</span>
+                    </div>
+                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
+                        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 14px; background: var(--bg-tertiary);" 
+                                title="Duplicate Tour" onclick="duplicateTour(\'${tour.id}\'); event.stopPropagation();">📋</button>
+                        <button class="delete-tour-btn" style="position: static;" 
+                                title="Delete Tour" onclick="deleteTour('${tour.id}')">×</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function getAllSavedTours() {
+            const tours = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('tour_v2_')) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        tours.push({
+                            id: data.id || 'unknown',
+                            name: data.name || 'Untitled',
+                            stops: data.stops ? data.stops.length : 0,
+                            location: data.stops && data.stops.length > 0 
+                                ? `${data.stops[0].latitude.toFixed(3)}, ${data.stops[0].longitude.toFixed(3)}` 
+                                : 'No location',
+                            updated: data.lastModified || Date.now()
+                        });
+                    } catch (e) { console.warn('Corrupt tour file', key); }
+                }
+            }
+            return tours.sort((a, b) => b.updated - a.updated);
+        }
+
+        function saveToLocalStorage() {
+            if (!tourData.id) return; // Don't save if no ID yet
+            
+            tourData.lastModified = Date.now();
+            const key = `tour_v2_${tourData.id}`;
+            
+            try {
+                localStorage.setItem(key, JSON.stringify(tourData));
+                console.log('Saved tour:', tourData.id);
+            } catch (e) {
+                console.warn('Storage full or error:', e);
+                showToast('Warning: Could not save locally (Storage Full?)', 'error');
+            }
+            
+            const indicator = document.getElementById('saveIndicator');
+            if(indicator) {
+                indicator.style.opacity = '1';
+                setTimeout(() => indicator.style.opacity = '0', 2000);
             }
         }
 
+        function loadTour(id) {
+            const key = `tour_v2_${id}`;
+            const data = localStorage.getItem(key);
+            if (data) {
+                tourData = JSON.parse(data);
+                // Reset history
+                history = [JSON.stringify(tourData)];
+                historyIndex = 0;
+                
+                updateUI();
+                if (tourData.stops.length > 0) fitAllStops();
+                
+                // Hide dashboard
+                document.getElementById('dashboardModal').classList.add('hidden');
+                showToast(`Loaded "${tourData.name}"`, 'success');
+            }
+        }
+
+        function createNewTour() {
+            // Reset state
+            tourData = {
+                id: `tour-${Date.now()}`,
+                name: 'New Tour',
+                description: '',
+                language: 'en',
+                stops: [],
+                route: { waypoints: [] }
+            };
+            
+            saveToLocalStorage();
+            loadTour(tourData.id); // Load the blank tour
+            
+            // Open settings immediately to rename
+            setTimeout(() => openTourSettings(), 100);
+        }
+
+        function duplicateTour(id) {
+            const key = `tour_v2_${id}`;
+            const data = localStorage.getItem(key);
+            if (data) {
+                const tour = JSON.parse(data);
+                tour.id = `${tour.id}-copy-${Date.now().toString().slice(-4)}`;
+                tour.name = `${tour.name} (Copy)`;
+                tour.lastModified = Date.now();
+                
+                const newKey = `tour_v2_${tour.id}`;
+                localStorage.setItem(newKey, JSON.stringify(tour));
+                
+                showToast('Tour duplicated!', 'success');
+                renderDashboard();
+            }
+        }
+        function deleteTour(id) {
+            if(confirm('Are you sure you want to delete this tour permanently?')) {
+                localStorage.removeItem(`tour_v2_${id}`);
+                renderDashboard();
+            }
+        }
+        
+        // Add a "Home" button to the header
+        function returnToDashboard() {
+            saveState();
+            renderDashboard();
+            document.getElementById('dashboardModal').classList.remove('hidden');
+        }
         // ============================================
         // TOAST NOTIFICATIONS
         // ============================================
@@ -2778,6 +3385,196 @@ python generate_audio.py ./${tourId} --overwrite
                 window.speechSynthesis.getVoices();
             };
         }
-    </script>
+            // ============================================
+        // ============================================
+        // AI TOUR REFINER
+        // ============================================
+
+        function openRefineModal() {
+            document.getElementById('refineModal').classList.remove('hidden');
+        }
+
+        function generateRefinePrompt() {
+            const instructions = document.getElementById('refineInstructions').value;
+            if (!instructions) {
+                showToast('Please enter instructions first', 'error');
+                return;
+            }
+
+            // Create a lightweight version of the tour for the AI to read
+            const tourContext = JSON.stringify(tourData, null, 2);
+
+            const prompt = `I have an existing JSON data structure for a walking tour. I need you to MODIFY it based on these instructions.
+
+INSTRUCTIONS:
+"${instructions}"
+
+CURRENT JSON DATA:
+\`\`\`json
+${tourContext}
+\`\`\`
+
+CRITICAL OUTPUT RULES:
+1. Return ONLY the valid, modified JSON.
+2. Do not add conversational text.
+3. Maintain the integrity of the data structure (stops array, lat/lngs, etc).
+4. If adding stops, try to estimate lat/lng if possible, or leave as 0.0 for me to fix.`;
+
+            navigator.clipboard.writeText(prompt).then(() => {
+                showToast('Prompt copied! Paste into ChatGPT/Claude.', 'success');
+            }).catch(() => {
+                document.getElementById('aiPromptText').textContent = prompt;
+                document.getElementById('aiPromptModal').classList.remove('hidden');
+            });
+        }
+
+        function processRefineImport() {
+            try {
+                const rawInput = document.getElementById('refinePasteInput').value;
+                const cleanJson = rawInput.replace(/```json/g, '').replace(/```/g, '').trim();
+                const imported = JSON.parse(cleanJson);
+
+                if (!imported.stops || !Array.isArray(imported.stops)) throw new Error('Invalid JSON structure');
+
+                // Create a backup before overwriting
+                const backupKey = `tour_backup_${tourData.id}_${Date.now()}`;
+                localStorage.setItem(backupKey, JSON.stringify(tourData));
+
+                // Apply updates
+                tourData = imported;
+                
+                // Recalculate derived data just in case
+                calculateDistances();
+                updateUI();
+                saveState();
+                
+                if (tourData.stops.length > 0) fitAllStops();
+                
+                closeModal('refineModal');
+                showToast('? Tour updated successfully!', 'success');
+                
+            } catch (e) {
+                alert('Error processing JSON: ' + e.message);
+            }
+        }
+        // AI TOUR ARCHITECT
+        // ============================================
+
+        function openArchitectModal() {
+            document.getElementById('architectModal').classList.remove('hidden');
+        }
+
+        function generateArchitectPrompt() {
+            const city = document.getElementById('archCity').value || 'a specific city';
+            const theme = document.getElementById('archTheme').value || 'general sightseeing';
+            const count = document.getElementById('archCount').value || 5;
+
+            const prompt = `Act as a professional local tour guide and historian. I need you to design a complete walking tour.
+
+TARGET AREA: ${city}
+THEME: ${theme}
+LENGTH: Approximately ${count} stops
+
+CRITICAL INSTRUCTION:
+You must output the result ONLY as valid JSON matching the exact structure below. Do not add conversational text before or after the JSON.
+
+JSON STRUCTURE REQUIRED:
+{
+  "name": "Tour Name",
+  "description": "2-sentence marketing description",
+  "difficulty": "easy", 
+  "location": "${city}",
+  "stops": [
+    {
+      "id": 1,
+      "name": "Name of Landmark",
+      "latitude": 0.000000, 
+      "longitude": 0.000000,
+      "script": "A 100-word engaging audio script to be read to the user at this location. Be conversational.",
+      "context": "Brief notes on why this stop was chosen."
+    }
+  ]
+}
+
+IMPORTANT:
+1. Coordinates must be accurate real-world GPS coordinates for the specific landmarks.
+2. The route should be walkable (logical order).
+3. Scripts should be engaging and storytelling-focused.`;
+
+            // Copy to clipboard automatically for better UX
+            navigator.clipboard.writeText(prompt).then(() => {
+                showToast('Prompt copied to clipboard! Paste into AI.', 'success');
+            }).catch(() => {
+                // Fallback if auto-copy fails
+                document.getElementById('aiPromptText').textContent = prompt;
+                document.getElementById('aiPromptModal').classList.remove('hidden');
+            });
+        }
+
+        function processArchitectImport() {
+            try {
+                const rawInput = document.getElementById('archPasteInput').value;
+                // Clean up markdown code blocks if the user pasted them (e.g. ```json ... ```)
+                const cleanJson = rawInput.replace(/```json/g, '').replace(/```/g, '').trim();
+                
+                const imported = JSON.parse(cleanJson);
+                
+                // Validate basics
+                if (!imported.stops || !Array.isArray(imported.stops)) throw new Error('Missing stops array');
+
+                // Merge into current data
+                tourData.name = imported.name || 'AI Generated Tour';
+                tourData.description = imported.description || "";
+                tourData.difficulty = imported.difficulty || 'easy';
+                
+                // Map stops to ensure all internal fields exist
+                tourData.stops = imported.stops.map((s, i) => ({
+                    id: i + 1,
+                    name: s.name,
+                    nameTranslated: null,
+                    latitude: parseFloat(s.latitude),
+                    longitude: parseFloat(s.longitude),
+                    triggerRadius: 25,
+                    audioFile: `audio/${String(i + 1).padStart(2, '0')}-stop.mp3`,
+                    imageFile: `images/${String(i + 1).padStart(2, '0')}-stop.jpg`,
+                    videoFile: s.videoFile || "",
+                    script: s.script || "",
+                    context: s.context || "",
+                    directionToNext: "",
+                    audioDuration: Math.round((s.script || "").split(/\s+/).length / 150 * 60)
+                }));
+
+                // Set start point
+                if (tourData.stops.length > 0) {
+                    tourData.startPoint = {
+                        latitude: tourData.stops[0].latitude,
+                        longitude: tourData.stops[0].longitude,
+                        instruction: "Start here"
+                    };
+                    
+                    // Center map on the new tour
+                    const bounds = L.latLngBounds(tourData.stops.map(s => [s.latitude, s.longitude]));
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+
+                closeModal('architectModal');
+                calculateDistances();
+                updateUI();
+                saveState();
+                showToast('🎉 Tour built successfully!', 'success');
+                
+                // Prompt to generate walking directions since AI doesn't give path geometry
+                setTimeout(() => {
+                    if(confirm("Tour imported! Generate walking directions between these stops now?")) {
+                        generateAllDirections();
+                    }
+                }, 1000);
+
+            } catch (e) {
+                console.error(e);
+                alert('Invalid JSON! Ensure you pasted the exact code block from the AI.\n\nError: ' + e.message);
+            }
+        }
+</script>
 </body>
 </html>

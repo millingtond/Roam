@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Tour Creator Pro - Enhanced</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #475569;
+            --accent: #06b6d4;
+            --accent-hover: #22d3ee;
+            --accent-light: rgba(6, 182, 212, 0.15);
+            --success: #10b981;
+            --success-light: rgba(16, 185, 129, 0.15);
+            --warning: #f59e0b;
+            --warning-light: rgba(245, 158, 11, 0.15);
+            --danger: #ef4444;
+            --danger-light: rgba(239, 68, 68, 0.15);
+            --radius: 12px;
+            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .card-icon.firebase { background: var(--warning-light); }
+        .card-icon.audio { background: var(--accent-light); }
+        .card-icon.upload { background: var(--success-light); }
+
+        .card h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Form elements */
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(6, 182, 212, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-danger {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Status indicators */
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .status.connected {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .status.disconnected {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .status.warning {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Progress bar */
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #a855f7);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* File upload area */
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius);
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        /* Audio list */
+        .audio-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .audio-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .audio-item-number {
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            color: var(--bg-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .audio-item-info {
+            flex: 1;
+        }
+
+        .audio-item-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .audio-item-status {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .audio-item-status.ready {
+            color: var(--success);
+        }
+
+        .audio-item-status.pending {
+            color: var(--warning);
+        }
+
+        .audio-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .audio-item-actions button {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .audio-item-actions button:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Voice selector */
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .voice-option {
+            padding: 16px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .voice-option:hover {
+            border-color: var(--accent);
+        }
+
+        .voice-option.selected {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .voice-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .voice-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: var(--bg-tertiary);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .tab:not(.active):hover {
+            background: var(--bg-secondary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Tour JSON preview */
+        .json-preview {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .voice-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--danger); }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎧 Audio Tour Publisher</h1>
+        <p class="subtitle">Generate audio, upload to Firebase, and publish your tour to the mobile app</p>
+
+        <!-- Firebase Connection -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon firebase">🔥</div>
+                <div>
+                    <h2>Firebase Connection</h2>
+                    <p>Connect to your Firebase project</p>
+                </div>
+            </div>
+
+            <div id="firebaseStatus" class="status disconnected">
+                <div class="status-dot"></div>
+                <span>Not connected</span>
+            </div>
+
+            <div class="input-group">
+                <label>OpenAI API Key (for TTS audio generation)</label>
+                <input type="password" id="openaiKey" placeholder="sk-proj">
+                <p class="input-hint">Your key is stored locally and never sent to our servers. Only used directly with OpenAI API.</p>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="connectFirebase()">
+                    🔗 Connect to Firebase
+                </button>
+                <button class="btn btn-secondary" onclick="saveApiKey()">
+                    💾 Save API Key
+                </button>
+            </div>
+        </div>
+
+        <!-- Load Tour JSON -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon upload">📄</div>
+                <div>
+                    <h2>Load Tour Data</h2>
+                    <p>Import your tour.json from the Tour Creator</p>
+                </div>
+            </div>
+
+            <div class="upload-area" id="dropZone" onclick="document.getElementById('jsonInput').click()">
+                <div class="upload-icon">📁</div>
+                <p><strong>Drop tour.json here</strong></p>
+                <p style="color: var(--text-muted); font-size: 13px;">or click to browse</p>
+                <input type="file" id="jsonInput" accept=".json" style="display: none" onchange="loadTourFile(event)">
+            </div>
+
+            <div id="tourInfo" style="display: none; margin-top: 20px;">
+                <div class="status connected">
+                    <span>✅</span>
+                    <span id="tourInfoText">Tour loaded</span>
+                </div>
+                <div class="json-preview" id="tourPreview"></div>
+            </div>
+        </div>
+
+        <!-- Audio Generation -->
+        <div class="card" id="audioCard" style="display: none;">
+            <div class="card-header">
+                <div class="card-icon audio">🎙️</div>
+                <div>
+                    <h2>Audio Generation</h2>
+                    <p>Generate or upload audio for each stop</p>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('generate')">🤖 OpenAI TTS</button>
+                <button class="tab" onclick="switchTab('edge')">🆓 Edge-TTS (Free)</button>
+                <button class="tab" onclick="switchTab('upload')">📤 Upload Files</button>
+            </div>
+
+            <!-- Generate Tab -->
+            <div class="tab-content active" id="tab-generate">
+                <label>Voice Selection</label>
+                <div class="voice-grid">
+                    <div class="voice-option selected" data-voice="alloy" onclick="selectVoice('alloy')">
+                        <div class="voice-name">Alloy</div>
+                        <div class="voice-desc">Neutral, balanced</div>
+                    </div>
+                    <div class="voice-option" data-voice="echo" onclick="selectVoice('echo')">
+                        <div class="voice-name">Echo</div>
+                        <div class="voice-desc">Male, warm</div>
+                    </div>
+                    <div class="voice-option" data-voice="fable" onclick="selectVoice('fable')">
+                        <div class="voice-name">Fable</div>
+                        <div class="voice-desc">British, expressive</div>
+                    </div>
+                    <div class="voice-option" data-voice="onyx" onclick="selectVoice('onyx')">
+                        <div class="voice-name">Onyx</div>
+                        <div class="voice-desc">Deep, authoritative</div>
+                    </div>
+                    <div class="voice-option" data-voice="nova" onclick="selectVoice('nova')">
+                        <div class="voice-name">Nova</div>
+                        <div class="voice-desc">Female, friendly</div>
+                    </div>
+                    <div class="voice-option" data-voice="shimmer" onclick="selectVoice('shimmer')">
+                        <div class="voice-name">Shimmer</div>
+                        <div class="voice-desc">Female, clear</div>
+                    </div>
+                </div>
+
+                <div class="btn-group" style="margin-top: 20px;">
+                    <button class="btn btn-primary" id="generateAllBtn" onclick="generateAllAudio()">
+                        🎵 Generate All Audio
+                    </button>
+                    <button class="btn btn-secondary" onclick="previewVoice()">
+                        🔊 Preview Voice
+                    </button>
+                </div>
+            </div>
+
+            <!-- Edge-TTS Tab (Free) -->
+            <div class="tab-content" id="tab-edge">
+                <div class="status warning" style="margin-bottom: 16px;">
+                    <span>💡</span>
+                    <span>Edge-TTS runs via Python on your computer - completely free, same quality as terminal!</span>
+                </div>
+                
+                <p style="margin-bottom: 16px; color: var(--text-secondary);">
+                    This generates a Python script you run locally. Same voices you use in terminal.
+                </p>
+                
+                <div class="input-group">
+                    <label>Voice</label>
+                    <select id="edgeVoice" style="width: 100%;">
+                        <option value="en-GB-SoniaNeural">🇬🇧 Sonia (British Female)</option>
+                        <option value="en-GB-RyanNeural">🇬🇧 Ryan (British Male)</option>
+                        <option value="en-US-JennyNeural">🇺🇸 Jenny (American Female)</option>
+                        <option value="en-US-GuyNeural">🇺🇸 Guy (American Male)</option>
+                        <option value="en-AU-NatashaNeural">🇦🇺 Natasha (Australian Female)</option>
+                    </select>
+                </div>
+                
+                <div class="btn-group" style="margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="generateEdgeTTSScript()">
+                        📥 Download Python Script
+                    </button>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;"><strong>After downloading:</strong></p>
+                    <code style="display: block; padding: 12px; background: var(--bg-primary); border-radius: 6px; font-size: 12px;">
+                        pip install edge-tts<br>
+                        python generate_audio.py
+                    </code>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                        Then switch to "Upload Files" tab to upload the generated MP3s.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Upload Tab -->
+            <div class="tab-content" id="tab-upload">
+                <p style="margin-bottom: 16px; color: var(--text-secondary);">
+                    Upload pre-recorded audio files. Files should be named: <code>01-stop.mp3</code>, <code>02-stop.mp3</code>, etc.
+                </p>
+                
+                <div class="upload-area" onclick="document.getElementById('audioFilesInput').click()">
+                    <div class="upload-icon">🎵</div>
+                    <p><strong>Drop MP3 files here</strong></p>
+                    <p style="color: var(--text-muted); font-size: 13px;">Select multiple files at once</p>
+                    <input type="file" id="audioFilesInput" accept=".mp3,.wav,.m4a" multiple style="display: none" onchange="handleAudioUpload(event)">
+                </div>
+            </div>
+
+            <!-- Audio Status List -->
+            <div class="audio-list" id="audioList"></div>
+
+            <!-- Progress -->
+            <div class="progress-container" id="audioProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="audioProgressBar" style="width: 0%"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="audioProgressText">Generating...</span>
+                    <span id="audioProgressPercent">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Publish to Firebase -->
+        <div class="card" id="publishCard" style="display: none;">
+            <div class="card-header">
+                <div class="card-icon firebase">🚀</div>
+                <div>
+                    <h2>Publish to Cloud</h2>
+                    <p>Upload everything to Firebase for your mobile app</p>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Version Number</label>
+                <input type="text" id="versionInput" value="1.0.0" placeholder="1.0.0">
+                <p class="input-hint">Increment this when updating a tour so the app knows to re-download</p>
+            </div>
+
+            <div class="progress-container" id="publishProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="publishProgressBar" style="width: 0%"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="publishProgressText">Uploading...</span>
+                    <span id="publishProgressPercent">0%</span>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-success" id="publishBtn" onclick="publishTour()">
+                    🚀 Publish Tour
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ============================================
+        // STATE
+        // ============================================
+        let tourData = null;
+        let audioFiles = new Map(); // stopId -> { blob, generated }
+        let selectedVoice = 'alloy';
+        let db = null;
+        let storage = null;
+
+        // Firebase config - same as your firebase-config.js
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBnXqzs7n7Q16Np-74z2lpYI44_M4wimtE",
+            authDomain: "roam-ec797.firebaseapp.com",
+            projectId: "roam-ec797",
+            storageBucket: "roam-ec797.firebasestorage.app",
+            messagingSenderId: "754058859162",
+            appId: "1:754058859162:web:9e9bf19b0caa1e4d32c523"
+        };
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved API key
+            const savedKey = localStorage.getItem('openai_api_key');
+            if (savedKey) {
+                document.getElementById('openaiKey').value = savedKey;
+            }
+
+            // Setup drag and drop
+            const dropZone = document.getElementById('dropZone');
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.name.endsWith('.json')) {
+                    loadTourFromFile(file);
+                }
+            });
+
+            // Auto-connect Firebase
+            connectFirebase();
+        });
+
+        // ============================================
+        // FIREBASE
+        // ============================================
+        function connectFirebase() {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(FIREBASE_CONFIG);
+                }
+                db = firebase.firestore();
+                storage = firebase.storage();
+
+                document.getElementById('firebaseStatus').className = 'status connected';
+                document.getElementById('firebaseStatus').innerHTML = `
+                    <div class="status-dot"></div>
+                    <span>Connected to Firebase (${FIREBASE_CONFIG.projectId})</span>
+                `;
+                showToast('Firebase connected!', 'success');
+            } catch (e) {
+                console.error('Firebase error:', e);
+                showToast('Firebase connection failed: ' + e.message, 'error');
+            }
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('openaiKey').value;
+            if (key) {
+                localStorage.setItem('openai_api_key', key);
+                showToast('API key saved locally', 'success');
+            }
+        }
+
+        // ============================================
+        // TOUR LOADING
+        // ============================================
+        function loadTourFile(event) {
+            const file = event.target.files[0];
+            if (file) loadTourFromFile(file);
+        }
+
+        function loadTourFromFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    tourData = JSON.parse(e.target.result);
+                    
+                    // Validate
+                    if (!tourData.stops || !Array.isArray(tourData.stops)) {
+                        throw new Error('Invalid tour format - missing stops array');
+                    }
+
+                    // Ensure ID exists
+                    if (!tourData.id) {
+                        tourData.id = tourData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                    }
+
+                    // Show tour info
+                    document.getElementById('tourInfo').style.display = 'block';
+                    document.getElementById('tourInfoText').textContent = 
+                        `${tourData.name} - ${tourData.stops.length} stops`;
+                    document.getElementById('tourPreview').textContent = 
+                        JSON.stringify(tourData, null, 2).substring(0, 500) + '...';
+
+                    // Show audio and publish cards
+                    document.getElementById('audioCard').style.display = 'block';
+                    document.getElementById('publishCard').style.display = 'block';
+
+                    // Render audio list
+                    renderAudioList();
+
+                    showToast('Tour loaded successfully!', 'success');
+                } catch (err) {
+                    showToast('Invalid JSON: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ============================================
+        // AUDIO MANAGEMENT
+        // ============================================
+        function renderAudioList() {
+            const list = document.getElementById('audioList');
+            list.innerHTML = '';
+
+            tourData.stops.forEach((stop, index) => {
+                const hasAudio = audioFiles.has(stop.id);
+                const item = document.createElement('div');
+                item.className = 'audio-item';
+                item.innerHTML = `
+                    <div class="audio-item-number">${index + 1}</div>
+                    <div class="audio-item-info">
+                        <div class="audio-item-name">${stop.name}</div>
+                        <div class="audio-item-status ${hasAudio ? 'ready' : 'pending'}">
+                            ${hasAudio ? '✅ Audio ready' : '⏳ Pending'}
+                        </div>
+                    </div>
+                    <div class="audio-item-actions">
+                        ${hasAudio ? `
+                            <button onclick="playAudio(${stop.id})" title="Play">▶️</button>
+                            <button onclick="removeAudio(${stop.id})" title="Remove">🗑️</button>
+                        ` : `
+                            <button onclick="generateSingleAudio(${stop.id})" title="Generate">🎵</button>
+                        `}
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function selectVoice(voice) {
+            selectedVoice = voice;
+            document.querySelectorAll('.voice-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.voice === voice);
+            });
+        }
+
+        async function previewVoice() {
+            const apiKey = document.getElementById('openaiKey').value;
+            if (!apiKey) {
+                showToast('Please enter your OpenAI API key first', 'error');
+                return;
+            }
+
+            showToast('Generating preview...', 'info');
+
+            try {
+                const audio = await generateTTS(
+                    "Welcome to this audio walking tour. I'll be your guide today as we explore some amazing locations.",
+                    selectedVoice,
+                    apiKey
+                );
+                
+                const url = URL.createObjectURL(audio);
+                const player = new Audio(url);
+                player.play();
+            } catch (err) {
+                showToast('Preview failed: ' + err.message, 'error');
+            }
+        }
+
+        async function generateAllAudio() {
+            const useCloud = confirm('Use cloud generation (recommended)?\n\nYes = Google Cloud TTS (free tier)\nNo = OpenAI (requires credits)');
+            
+            if (useCloud) {
+                await generateWithCloudFunction();
+            } else {
+                await generateWithOpenAI();
+            }
+        }
+
+        async function generateWithCloudFunction() {
+            if (!tourData?.stops) {
+                showToast('Load a tour first!', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('generateAllBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> Generating on server...';
+            document.getElementById('audioProgress').style.display = 'block';
+            updateProgress('audio', 0, 100, 'Sending to cloud...');
+
+            try {
+                const generateAudio = firebase.functions().httpsCallable('generateAudio');
+                
+                const result = await generateAudio({
+                    tourId: tourData.id,
+                    stops: tourData.stops.map(s => ({ id: s.id, script: s.script })),
+                    voice: selectedVoice === 'alloy' ? 'en-GB-Wavenet-A' : 
+                           selectedVoice === 'nova' ? 'en-GB-Wavenet-C' :
+                           selectedVoice === 'onyx' ? 'en-GB-Wavenet-B' : 'en-GB-Wavenet-A'
+                });
+
+                // Mark all as ready (they're already in Firebase Storage)
+                tourData.stops.forEach(stop => {
+                    audioFiles.set(stop.id, { blob: null, generated: true, inCloud: true });
+                });
+
+                updateProgress('audio', 100, 100, 'Complete!');
+                renderAudioList();
+                showToast('🎉 Audio generated in cloud!', 'success');
+
+            } catch (err) {
+                console.error(err);
+                showToast('Cloud generation failed: ' + err.message, 'error');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '🎵 Generate All Audio';
+        }
+
+        async function generateWithOpenAI() {
+            const apiKey = document.getElementById('openaiKey').value;
+            if (!apiKey) {
+                showToast('Please enter your OpenAI API key first', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('generateAllBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> Generating...';
+
+            document.getElementById('audioProgress').style.display = 'block';
+
+            const total = tourData.stops.length;
+            let completed = 0;
+
+            for (const stop of tourData.stops) {
+                if (!stop.script) {
+                    completed++;
+                    continue;
+                }
+
+                updateProgress('audio', completed, total, `Generating: ${stop.name}`);
+
+                try {
+                    const audioBlob = await generateTTS(stop.script, selectedVoice, apiKey);
+                    audioFiles.set(stop.id, { blob: audioBlob, generated: true });
+                } catch (err) {
+                    console.error(`Failed to generate audio for stop ${stop.id}:`, err);
+                    showToast(`Failed: ${stop.name}`, 'error');
+                }
+
+                completed++;
+                renderAudioList();
+            }
+
+            updateProgress('audio', total, total, 'Complete!');
+            btn.disabled = false;
+            btn.innerHTML = '🎵 Generate All Audio';
+            showToast('Audio generation complete!', 'success');
+        }
+
+        async function generateSingleAudio(stopId) {
+            const apiKey = document.getElementById('openaiKey').value;
+            if (!apiKey) {
+                showToast('Please enter your OpenAI API key first', 'error');
+                return;
+            }
+
+            const stop = tourData.stops.find(s => s.id === stopId);
+            if (!stop || !stop.script) {
+                showToast('Stop has no script', 'error');
+                return;
+            }
+
+            showToast(`Generating audio for ${stop.name}...`, 'info');
+
+            try {
+                const audioBlob = await generateTTS(stop.script, selectedVoice, apiKey);
+                audioFiles.set(stopId, { blob: audioBlob, generated: true });
+                renderAudioList();
+                showToast('Audio generated!', 'success');
+            } catch (err) {
+                showToast('Generation failed: ' + err.message, 'error');
+            }
+        }
+
+        async function generateTTS(text, voice, apiKey) {
+            const response = await fetch('https://api.openai.com/v1/audio/speech', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: 'tts-1-hd', // High quality model
+                    input: text,
+                    voice: voice,
+                    response_format: 'mp3',
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || 'TTS API failed');
+            }
+
+            return await response.blob();
+        }
+
+        function playAudio(stopId) {
+            const audio = audioFiles.get(stopId);
+            if (audio) {
+                const url = URL.createObjectURL(audio.blob);
+                const player = new Audio(url);
+                player.play();
+            }
+        }
+
+        function removeAudio(stopId) {
+            audioFiles.delete(stopId);
+            renderAudioList();
+        }
+
+        function generateEdgeTTSScript() {
+            if (!tourData || !tourData.stops) {
+                showToast('Load a tour first!', 'error');
+                return;
+            }
+
+            const voice = document.getElementById('edgeVoice').value;
+            const tourId = tourData.id || 'tour';
+
+            let script = `#!/usr/bin/env python3
+"""
+Auto-generated Edge-TTS script for: ${tourData.name}
+Run: pip install edge-tts && python generate_audio.py
+"""
+
+import asyncio
+import edge_tts
+import os
+
+VOICE = "${voice}"
+OUTPUT_DIR = "audio"
+
+SCRIPTS = [
+`;
+
+            tourData.stops.forEach((stop, i) => {
+                const escaped = (stop.script || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+                script += `    ("${String(i + 1).padStart(2, '0')}-stop.mp3", "${escaped}"),\n`;
+            });
+
+            script += `]
+
+async def generate():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
+    for filename, text in SCRIPTS:
+        if not text.strip():
+            print(f"⚠️  Skipping {filename} (no script)")
+            continue
+            
+        output_path = os.path.join(OUTPUT_DIR, filename)
+        print(f"🎙️  Generating {filename}...")
+        
+        communicate = edge_tts.Communicate(text, VOICE)
+        await communicate.save(output_path)
+        print(f"✅  Saved {output_path}")
+
+    print(f"\\n🎉 Done! {len(SCRIPTS)} audio files in ./{OUTPUT_DIR}/")
+
+if __name__ == "__main__":
+    asyncio.run(generate())
+`;
+
+            // Download the script
+            const blob = new Blob([script], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `generate_audio_${tourId}.py`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('Python script downloaded! Run it locally.', 'success');
+        }
+
+        function handleAudioUpload(event) {
+            const files = event.target.files;
+            
+            for (const file of files) {
+                // Extract stop number from filename (e.g., "01-stop.mp3" -> 1)
+                const match = file.name.match(/^(\d+)/);
+                if (match) {
+                    const stopNumber = parseInt(match[1]);
+                    const stop = tourData.stops.find(s => s.id === stopNumber);
+                    
+                    if (stop) {
+                        audioFiles.set(stop.id, { blob: file, generated: false });
+                        showToast(`Loaded audio for stop ${stopNumber}`, 'success');
+                    }
+                }
+            }
+            
+            renderAudioList();
+        }
+
+        // ============================================
+        // PUBLISHING
+        // ============================================
+        async function publishTour() {
+            if (!db || !storage) {
+                showToast('Firebase not connected!', 'error');
+                return;
+            }
+
+            // Check all stops have audio
+            const missingAudio = tourData.stops.filter(s => !audioFiles.has(s.id));
+            if (missingAudio.length > 0) {
+                showToast(`Missing audio for ${missingAudio.length} stops`, 'error');
+                return;
+            }
+
+            const btn = document.getElementById('publishBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> Publishing...';
+
+            document.getElementById('publishProgress').style.display = 'block';
+
+            try {
+                const version = document.getElementById('versionInput').value || '1.0.0';
+                const tourId = tourData.id;
+                const total = tourData.stops.length + 1; // +1 for metadata
+                let completed = 0;
+
+                // 1. Upload audio files to Storage
+                for (const stop of tourData.stops) {
+                    updateProgress('publish', completed, total, `Uploading: ${stop.name}`);
+                    
+                    const audioData = audioFiles.get(stop.id);
+                    if (audioData) {
+                        const fileName = `${String(stop.id).padStart(2, '0')}-stop.mp3`;
+                        const storagePath = `tours/${tourId}/audio/${fileName}`;
+                        
+                        const storageRef = storage.ref(storagePath);
+                        await storageRef.put(audioData.blob, { contentType: 'audio/mpeg' });
+                        
+                        // Update stop's audioFile path
+                        stop.audioFile = `audio/${fileName}`;
+                    }
+                    
+                    completed++;
+                }
+
+                // 2. Upload tour metadata to Firestore
+                updateProgress('publish', completed, total, 'Saving tour data...');
+
+                // Prepare tour data for Firestore
+                const firestoreData = {
+                    ...tourData,
+                    version: version,
+                    updatedAt: new Date().toISOString(),
+                    createdAt: tourData.createdAt || new Date().toISOString(),
+                    audioGenerated: true,
+                };
+
+                // Handle nested arrays (Firestore limitation)
+                if (firestoreData.route?.waypoints) {
+                    firestoreData.route.waypoints = firestoreData.route.waypoints.map(pt => 
+                        Array.isArray(pt) ? { lat: pt[0], lng: pt[1] } : pt
+                    );
+                }
+                if (firestoreData.route?.detailedPath) {
+                    firestoreData.route.detailedPath = firestoreData.route.detailedPath.map(pt =>
+                        Array.isArray(pt) ? { lat: pt[0], lng: pt[1] } : pt
+                    );
+                }
+
+                await db.collection('tours').doc(tourId).set(firestoreData);
+
+                updateProgress('publish', total, total, 'Complete!');
+                
+                showToast('🎉 Tour published successfully!', 'success');
+                
+                // Show success message
+                setTimeout(() => {
+                    alert(`Tour "${tourData.name}" is now live!\n\nOpen the mobile app and pull to refresh to see your tour.`);
+                }, 500);
+
+            } catch (err) {
+                console.error('Publish error:', err);
+                showToast('Publish failed: ' + err.message, 'error');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Publish Tour';
+        }
+
+        // ============================================
+        // UI HELPERS
+        // ============================================
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function updateProgress(type, current, total, text) {
+            const percent = Math.round((current / total) * 100);
+            document.getElementById(`${type}ProgressBar`).style.width = `${percent}%`;
+            document.getElementById(`${type}ProgressText`).textContent = text;
+            document.getElementById(`${type}ProgressPercent`).textContent = `${percent}%`;
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
